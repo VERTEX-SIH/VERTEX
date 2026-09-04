@@ -1,3 +1,5 @@
+import json
+import os
 import math
 import logging
 from typing import List, Dict, Any
@@ -8,6 +10,18 @@ logger = logging.getLogger(__name__)
 # Basic in-memory cache to prevent downloading all facilities constantly
 _cached_facilities: List[Dict[str, Any]] = []
 
+def _load_fallback_facilities() -> List[Dict[str, Any]]:
+    try:
+        json_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'india_industrial_facilities.json')
+        if os.path.exists(json_path):
+            with open(json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                logger.info(f"Loaded {len(data)} offline industrial facilities from JSON.")
+                return data
+    except Exception as e:
+        logger.error(f'Error loading offline facilities JSON: {e}')
+    return []
+
 def _get_all_facilities() -> List[Dict[str, Any]]:
     global _cached_facilities
     if _cached_facilities:
@@ -15,13 +29,14 @@ def _get_all_facilities() -> List[Dict[str, Any]]:
         
     try:
         res = supabase_service.table('industrial_facilities').select('*').execute()
-        if res.data:
+        if res and res.data and len(res.data) > 0:
             _cached_facilities = res.data
             return _cached_facilities
     except Exception as e:
         logger.error(f'Error fetching facilities from Supabase: {e}')
     
-    return []
+    _cached_facilities = _load_fallback_facilities()
+    return _cached_facilities
 
 def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     R = 6371000  # radius of Earth in meters
@@ -40,21 +55,31 @@ def find_nearby_facilities(lat: float, lon: float, radius_m: int = 5000) -> List
         return []
         
     nearby = []
+    all_with_dist = []
     for fac in facilities:
         effective_radius = fac.get('radius_m')
         if effective_radius is None:
             effective_radius = radius_m
             
         dist = haversine_distance(lat, lon, fac['latitude'], fac['longitude'])
-        if dist <= effective_radius:
-            nearby.append({
-                'name': fac['name'],
-                'type': fac['type'],
-                'latitude': fac['latitude'],
-                'longitude': fac['longitude'],
-                'distance_m': round(dist, 2)
-            })
+        item = {
+            'name': fac['name'],
+            'type': fac['type'],
+            'latitude': fac['latitude'],
+            'longitude': fac['longitude'],
+            'distance_m': round(dist, 2)
+        }
+        all_with_dist.append(item)
+        if dist <= max(effective_radius, radius_m):
+            nearby.append(item)
             
-    # Sort by nearest first
-    nearby.sort(key=lambda x: x['distance_m'])
-    return nearby
+    if nearby:
+        nearby.sort(key=lambda x: x['distance_m'])
+        return nearby
+
+    # If no facility within 5km, return closest facility within 25km
+    all_with_dist.sort(key=lambda x: x['distance_m'])
+    if all_with_dist and all_with_dist[0]['distance_m'] <= 25000:
+        return [all_with_dist[0]]
+
+    return []

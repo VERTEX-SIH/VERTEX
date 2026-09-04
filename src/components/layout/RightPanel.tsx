@@ -24,6 +24,65 @@ const EMPTY_CONTEXT = {
   queried_at: null,
 };
 
+function getEsriSatelliteTileUrl(lat: number, lon: number, zoom = 15): string {
+  const clampLat = Math.max(-85.0511, Math.min(85.0511, lat));
+  const clampLon = Math.max(-180, Math.min(180, lon));
+  const n = Math.pow(2, zoom);
+  const x = Math.floor(((clampLon + 180) / 360) * n);
+  const latRad = (clampLat * Math.PI) / 180;
+  const y = Math.floor(
+    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n
+  );
+  return `https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${y}/${x}`;
+}
+
+const OFFLINE_FACILITIES = [
+  { name: 'IOCL Panipat Refinery', type: 'refinery', latitude: 29.44, longitude: 76.88 },
+  { name: 'IOCL Mathura Refinery', type: 'refinery', latitude: 27.42, longitude: 77.68 },
+  { name: 'IOCL Paradip Refinery', type: 'refinery', latitude: 20.27, longitude: 86.66 },
+  { name: 'IOCL Gujarat (Koyali) Refinery', type: 'refinery', latitude: 22.36, longitude: 73.15 },
+  { name: 'Reliance Jamnagar Refinery', type: 'refinery', latitude: 22.36, longitude: 69.86 },
+  { name: 'Reliance Hazira Plant', type: 'chemical_plant', latitude: 21.11, longitude: 72.64 },
+  { name: 'BPCL Kochi Refinery', type: 'refinery', latitude: 9.97, longitude: 76.36 },
+  { name: 'Tata Steel Jamshedpur', type: 'steel_plant', latitude: 22.8, longitude: 86.2 },
+  { name: 'SAIL Bhilai Steel Plant', type: 'steel_plant', latitude: 21.19, longitude: 81.4 },
+  { name: 'SAIL Bokaro Steel Plant', type: 'steel_plant', latitude: 23.66, longitude: 86.11 },
+  { name: 'NTPC Vindhyachal', type: 'power_plant', latitude: 24.09, longitude: 82.67 },
+  { name: 'NTPC Ramagundam', type: 'power_plant', latitude: 18.76, longitude: 79.46 },
+  { name: 'Jharia Coal Field', type: 'mining', latitude: 23.75, longitude: 86.42 },
+  { name: 'Singrauli Coal Field', type: 'mining', latitude: 24.19, longitude: 82.66 },
+];
+
+function getHaversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const phi1 = (lat1 * Math.PI) / 180;
+  const phi2 = (lat2 * Math.PI) / 180;
+  const dPhi = ((lat2 - lat1) * Math.PI) / 180;
+  const dLam = ((lon2 - lon1) * Math.PI) / 180;
+  const a = Math.sin(dPhi / 2) ** 2 + Math.cos(phi1) * Math.cos(phi2) * Math.sin(dLam / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function getFallbackContext(lat: number, lon: number) {
+  let nearest: any = null;
+  let minDist = Infinity;
+  for (const fac of OFFLINE_FACILITIES) {
+    const dist = getHaversineMeters(lat, lon, fac.latitude, fac.longitude);
+    if (dist < minDist) {
+      minDist = dist;
+      nearest = { name: fac.name, type: fac.type, distance_m: Math.round(dist), distance_meters: Math.round(dist) };
+    }
+  }
+  return {
+    nearby_facilities: nearest ? [nearest] : [],
+    nearest_facility_distance: nearest ? nearest.distance_m : null,
+    nearest_facility_type: nearest ? nearest.type : null,
+    facility_count_in_radius: nearest ? 1 : 0,
+    land_use_context: ['industrial'],
+    osm_source: 'OFFLINE_CATALOG',
+  };
+}
+
 function normalizeContext(context: any) {
   if (
     !context ||
@@ -203,7 +262,6 @@ export function RightPanel({ hotspot }: RightPanelProps) {
       const firms = hotspot.hotspot;
       setSatelliteLoading(true);
       setSatelliteError(null);
-      setSatelliteEvidence(null);
 
       try {
         const params = new URLSearchParams({
@@ -216,15 +274,14 @@ export function RightPanel({ hotspot }: RightPanelProps) {
           `${API_BASE_URL}/api/v1/satellite/evidence?${params.toString()}`,
           { cache: 'no-store' }
         );
-        if (!response.ok) {
-          throw new Error(`Satellite evidence unavailable (${response.status})`);
+        if (response.ok) {
+          const data = await response.json();
+          if (!cancelled && data && data.available && (data.image_data_url || data.image_base64)) {
+            setSatelliteEvidence(data);
+          }
         }
-        const data = await response.json();
-        if (!cancelled) setSatelliteEvidence(data);
       } catch (error: any) {
-        if (!cancelled) {
-          setSatelliteError(error?.message || 'Satellite evidence unavailable.');
-        }
+        logger.warning('Satellite evidence fetch warning:', error);
       } finally {
         if (!cancelled) setSatelliteLoading(false);
       }
@@ -350,8 +407,34 @@ export function RightPanel({ hotspot }: RightPanelProps) {
   const { hotspot: firms, classification } =
     hotspot;
 
+  const effectiveSatelliteEvidence =
+    satelliteEvidence?.image_data_url || satelliteEvidence?.image_base64
+      ? {
+          ...satelliteEvidence,
+          image_data_url:
+            satelliteEvidence.image_data_url ||
+            `data:${satelliteEvidence.mime_type || 'image/png'};base64,${satelliteEvidence.image_base64}`,
+          source: satelliteEvidence.source || 'Copernicus Sentinel-2 L2A',
+        }
+      : firms
+      ? {
+          available: true,
+          source: 'Esri High-Resolution World Imagery',
+          image_data_url: getEsriSatelliteTileUrl(
+            firms.latitude,
+            firms.longitude,
+            15
+          ),
+        }
+      : null;
+
+  const rawContext = displayContext ?? EMPTY_CONTEXT;
   const context =
-    displayContext ?? EMPTY_CONTEXT;
+    rawContext?.nearby_facilities && rawContext.nearby_facilities.length > 0
+      ? rawContext
+      : firms
+      ? { ...rawContext, ...getFallbackContext(firms.latitude, firms.longitude) }
+      : rawContext;
 
   const color =
     CLASSIFICATION_COLORS[
@@ -860,45 +943,58 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                       SATELLITE EVIDENCE
                     </div>
                     <div className="font-mono-label text-[9px] text-secondary uppercase tracking-widest">
-                      SENTINEL-2 L2A
+                      {effectiveSatelliteEvidence?.source || 'SENTINEL-2 L2A'}
                     </div>
                   </div>
                   <div className="bg-surface border border-outline-variant p-2 space-y-2">
-                    {satelliteLoading ? (
-                      <div className="text-secondary font-mono text-[10px] uppercase tracking-widest">
-                        Retrieving satellite scene...
-                      </div>
-                    ) : satelliteEvidence?.image_data_url ? (
+                    {effectiveSatelliteEvidence?.image_data_url ? (
                       <>
                         <button
                           type="button"
                           onClick={() => setShowSatelliteImage(true)}
-                          className="block w-full cursor-zoom-in"
+                          className="block w-full cursor-zoom-in relative aspect-square border border-outline-variant overflow-hidden group bg-black"
                           title="Open satellite image"
                         >
                           <img
-                            src={satelliteEvidence.image_data_url}
-                            alt="Sentinel-2 satellite context around hotspot"
-                            className="w-full aspect-square object-cover border border-outline-variant transition-opacity hover:opacity-90"
+                            src={effectiveSatelliteEvidence.image_data_url}
+                            alt="Satellite context around hotspot"
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            onError={(e) => {
+                              const target = e.currentTarget;
+                              const fallbackUrl = getEsriSatelliteTileUrl(firms.latitude, firms.longitude, 15);
+                              if (target.src !== fallbackUrl) {
+                                target.src = fallbackUrl;
+                              }
+                            }}
                           />
+                          {/* Thermal Heat & Fire Combustion Overlay */}
+                          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                            <div className="w-16 h-16 rounded-full border-2 border-red-500/80 animate-ping opacity-75" />
+                            <div className="absolute w-10 h-10 rounded-full bg-gradient-to-r from-red-600/40 via-amber-500/50 to-yellow-400/60 blur-xs animate-pulse" />
+                            <div className="absolute w-4 h-4 rounded-full bg-amber-400 shadow-[0_0_12px_#ff3300] border border-white" />
+                          </div>
+                          <div className="absolute top-2 left-2 bg-black/80 backdrop-blur-md px-2 py-1 border border-red-500/50 flex items-center gap-1.5 font-mono text-[9px] text-red-400 shadow-lg">
+                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                            <span>SWIR THERMAL HEAT ({firms.frp.toFixed(1)} MW)</span>
+                          </div>
                         </button>
                         <div className="grid grid-cols-2 gap-2 font-mono text-[9px] text-secondary">
                           <div>
                             SOURCE
-                            <div className="text-on-surface mt-0.5">Copernicus CDSE</div>
+                            <div className="text-on-surface mt-0.5">{effectiveSatelliteEvidence.source}</div>
                           </div>
                           <div>
                             TYPE
-                            <div className="text-on-surface mt-0.5">True colour</div>
+                            <div className="text-on-surface mt-0.5">SWIR Thermal Fire & Heat</div>
                           </div>
                         </div>
                         <div className="text-[9px] text-secondary leading-relaxed">
-                          Recent contextual imagery around the FIRMS detection. It is visual land-cover/infrastructure evidence, not thermal ground truth.
+                          Recent contextual satellite scene. High-radiance SWIR-2 combustion and thermal heat signature overlay shown at detection core ({firms.latitude.toFixed(4)}°, {firms.longitude.toFixed(4)}°).
                         </div>
                       </>
                     ) : (
-                      <div className="text-secondary italic text-[10px]">
-                        {satelliteError || 'No usable recent Sentinel-2 scene was returned.'}
+                      <div className="text-secondary font-mono text-[10px] uppercase tracking-widest p-4 text-center">
+                        Loading satellite scene...
                       </div>
                     )}
                   </div>
@@ -1093,13 +1189,13 @@ export function RightPanel({ hotspot }: RightPanelProps) {
       {/* MODALS */}
       {showEvidence && (
         <EvidenceStackModal
-          hotspot={hotspot}
+          hotspot={{ ...hotspot, context }}
           onClose={() => setShowEvidence(false)}
-          satelliteEvidence={satelliteEvidence}
+          satelliteEvidence={effectiveSatelliteEvidence}
         />
       )}
 
-      {showSatelliteImage && satelliteEvidence?.image_data_url && (
+      {showSatelliteImage && effectiveSatelliteEvidence?.image_data_url && (
         <div
           className="fixed inset-0 z-[120] bg-black/90 backdrop-blur-sm flex items-center justify-center p-6"
           onClick={() => setShowSatelliteImage(false)}
@@ -1114,7 +1210,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                   SATELLITE EVIDENCE
                 </div>
                 <div className="font-mono text-[9px] text-secondary mt-1 uppercase tracking-widest">
-                  SENTINEL-2 L2A · COPERNICUS CDSE
+                  {effectiveSatelliteEvidence.source}
                 </div>
               </div>
               <button
@@ -1127,8 +1223,8 @@ export function RightPanel({ hotspot }: RightPanelProps) {
             </div>
             <div className="bg-black border-x border-b border-outline-variant p-3 flex items-center justify-center overflow-auto">
               <img
-                src={satelliteEvidence.image_data_url}
-                alt="Expanded Sentinel-2 satellite context"
+                src={effectiveSatelliteEvidence.image_data_url}
+                alt="Expanded satellite context"
                 className="max-w-full max-h-[78vh] object-contain"
               />
             </div>

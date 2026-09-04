@@ -487,31 +487,6 @@ export function Sidebar({
         {activeTab === 'FILTER' && (
           <div className="p-4 space-y-6">
 
-            {/* APPLY & RESET ACTION BUTTONS TOP */}
-            <div className="space-y-2 pb-4 border-b border-outline-variant">
-              <button
-                type="button"
-                id="apply-filters-btn"
-                onClick={handleApplyFilters}
-                className={`w-full py-2.5 px-3 font-mono-label text-[11px] font-bold tracking-widest uppercase transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md ${
-                  isFilterModified
-                    ? 'bg-primary text-on-primary ring-2 ring-primary ring-offset-1 hover:brightness-110 animate-pulse'
-                    : 'bg-primary text-on-primary hover:brightness-105'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[16px]">filter_alt</span>
-                APPLY FILTERS {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="w-full py-1.5 bg-surface-container border border-outline-variant text-secondary font-mono-label text-[10px] tracking-widest uppercase hover:border-primary hover:text-primary transition-colors cursor-pointer"
-              >
-                RESET FILTERS
-              </button>
-            </div>
-
             {/* CLASSIFICATION */}
             <div>
 
@@ -711,6 +686,7 @@ export function Sidebar({
             <div className="space-y-2 pt-4 border-t border-outline-variant">
               <button
                 type="button"
+                id="apply-filters-btn"
                 onClick={handleApplyFilters}
                 className={`w-full py-2.5 px-3 font-mono-label text-[11px] font-bold tracking-widest uppercase transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md ${
                   isFilterModified
