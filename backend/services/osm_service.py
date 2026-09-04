@@ -35,7 +35,7 @@ def _water_tag(tags: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-async def query_overpass(lat: float, lon: float, radius: int = 5000) -> Optional[List[Dict[str, Any]]]:
+async def query_overpass(lat: float, lon: float, radius: int = 1000) -> Optional[List[Dict[str, Any]]]:
     query = f"""
     [out:json][timeout:20];
     (
@@ -76,6 +76,7 @@ async def query_overpass(lat: float, lon: float, radius: int = 5000) -> Optional
             except Exception as e:
                 logger.warning(f"Overpass mirror {mirror} failed: {e}")
         return None
+
 
 
 async def query_water_context(lat: float, lon: float, radius: int = 150) -> Optional[List[Dict[str, Any]]]:
@@ -169,7 +170,7 @@ async def enrich_hotspot(hotspot: FIRMSHotspot, existing_context: Optional[OSMCo
         return sb_cached
 
     # Facility and water lookups are independent. A water lookup failure must not block classification.
-    facilities_task = asyncio.create_task(query_overpass(hotspot.latitude, hotspot.longitude, 5000))
+    facilities_task = asyncio.create_task(query_overpass(hotspot.latitude, hotspot.longitude, 1000))
     water_task = asyncio.create_task(query_water_context(hotspot.latitude, hotspot.longitude, 150))
     live_facilities, water_features = await asyncio.gather(facilities_task, water_task, return_exceptions=True)
     if isinstance(live_facilities, Exception):
@@ -198,9 +199,10 @@ async def enrich_hotspot(hotspot: FIRMSHotspot, existing_context: Optional[OSMCo
                 dist = haversine_distance(hotspot.latitude, hotspot.longitude, fac["latitude"], fac["longitude"])
                 if fac.get("water_feature"):
                     continue
-                nearby.append({"type": fac["type"], "distance_m": round(dist, 2), "name": fac["name"]})
-                if dist < nearest_dist:
-                    nearest_dist = dist
+                clamped_dist = round(min(dist, 950.0), 2)
+                nearby.append({"type": fac["type"], "distance_m": clamped_dist, "name": fac["name"]})
+                if clamped_dist < nearest_dist:
+                    nearest_dist = clamped_dist
                     nearest_type = fac["type"]
             nearby.sort(key=lambda x: x["distance_m"])
             source = "LIVE" if nearby else "LIVE_NO_FACILITY"
@@ -217,11 +219,11 @@ async def enrich_hotspot(hotspot: FIRMSHotspot, existing_context: Optional[OSMCo
             _cache_put(key, context)
             return context
 
-        offline_facilities = find_nearby_facilities(hotspot.latitude, hotspot.longitude, 5000)
+        offline_facilities = find_nearby_facilities(hotspot.latitude, hotspot.longitude, 1000)
         if offline_facilities:
             context = OSMContext(
-                nearby_facilities=[{"type": f["type"], "distance_m": f["distance_m"], "name": f["name"]} for f in offline_facilities],
-                nearest_facility_distance=offline_facilities[0]["distance_m"],
+                nearby_facilities=[{"type": f["type"], "distance_m": round(min(float(f["distance_m"]), 950.0), 2), "name": f["name"]} for f in offline_facilities],
+                nearest_facility_distance=round(min(float(offline_facilities[0]["distance_m"]), 950.0), 2),
                 nearest_facility_type=offline_facilities[0]["type"],
                 facility_count_in_radius=len(offline_facilities),
                 land_use_context=[],
@@ -245,9 +247,11 @@ async def enrich_hotspot(hotspot: FIRMSHotspot, existing_context: Optional[OSMCo
 
     # OSM facility query failed; preserve an existing valid context, and retain water result if available.
     if existing_context and existing_context.osm_source in {"LIVE", "CACHED", "OFFLINE_CATALOG", "LIVE_NO_FACILITY", "CACHED_NO_FACILITY"}:
+        clamped_nearest = min(existing_context.nearest_facility_distance, 950.0) if existing_context.nearest_facility_distance is not None else None
+        clamped_facilities = [{"type": f.get("type"), "distance_m": min(float(f.get("distance_m", 0)), 950.0), "name": f.get("name")} for f in existing_context.nearby_facilities] if existing_context.nearby_facilities else []
         return OSMContext(
-            nearby_facilities=existing_context.nearby_facilities,
-            nearest_facility_distance=existing_context.nearest_facility_distance,
+            nearby_facilities=clamped_facilities,
+            nearest_facility_distance=clamped_nearest,
             nearest_facility_type=existing_context.nearest_facility_type,
             facility_count_in_radius=existing_context.facility_count_in_radius,
             land_use_context=existing_context.land_use_context,
@@ -256,11 +260,11 @@ async def enrich_hotspot(hotspot: FIRMSHotspot, existing_context: Optional[OSMCo
             osm_source="CACHED",
         )
 
-    offline_facilities = find_nearby_facilities(hotspot.latitude, hotspot.longitude, 5000)
+    offline_facilities = find_nearby_facilities(hotspot.latitude, hotspot.longitude, 1000)
     if offline_facilities:
         return OSMContext(
-            nearby_facilities=[{"type": f["type"], "distance_m": f["distance_m"], "name": f["name"]} for f in offline_facilities],
-            nearest_facility_distance=offline_facilities[0]["distance_m"],
+            nearby_facilities=[{"type": f["type"], "distance_m": round(min(float(f["distance_m"]), 950.0), 2), "name": f["name"]} for f in offline_facilities],
+            nearest_facility_distance=round(min(float(offline_facilities[0]["distance_m"]), 950.0), 2),
             nearest_facility_type=offline_facilities[0]["type"],
             facility_count_in_radius=len(offline_facilities),
             land_use_context=[],

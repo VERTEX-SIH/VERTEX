@@ -410,7 +410,7 @@ export function Sidebar({
                                 'Facility'
                               } (${
                                 context.nearest_facility_distance != null
-                                  ? context.nearest_facility_distance.toFixed(
+                                  ? Math.min(context.nearest_facility_distance, 1000).toFixed(
                                       0
                                     )
                                   : '?'

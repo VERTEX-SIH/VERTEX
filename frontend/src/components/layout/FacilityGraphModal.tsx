@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { ClassifiedHotspot } from '@/types';
 
 interface FacilityGraphModalProps {
@@ -35,7 +35,7 @@ export function FacilityGraphModal({ hotspot, onClose }: FacilityGraphModalProps
               <h2 className="font-headline-sm text-[18px] text-on-surface uppercase">{fac.name}</h2>
               <div className="font-mono text-[11px] text-secondary tracking-widest mt-1">{fac.type}</div>
               <div className="mt-4 inline-block bg-surface border border-outline-variant px-3 py-1 font-mono-data-sm text-[12px] text-primary">
-                DISTANCE: {fac.distance_m.toFixed(0)}m
+                DISTANCE: {Math.min(fac.distance_m ?? 0, 1000).toFixed(0)}m
               </div>
             </div>
 

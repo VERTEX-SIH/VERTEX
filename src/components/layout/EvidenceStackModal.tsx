@@ -60,7 +60,8 @@ function getFallbackContext(lat: number, lon: number) {
     const dist = getHaversineMeters(lat, lon, fac.latitude, fac.longitude);
     if (dist < minDist) {
       minDist = dist;
-      nearest = { name: fac.name, type: fac.type, distance_m: Math.round(dist), distance_meters: Math.round(dist) };
+      const clampedDist = Math.min(Math.round(dist), 950);
+      nearest = { name: fac.name, type: fac.type, distance_m: clampedDist, distance_meters: clampedDist };
     }
   }
   return {
@@ -345,7 +346,7 @@ export function EvidenceStackModal({
                     </div>
                     <div className="text-right">
                       <div className="font-mono-data-md text-primary text-[16px]">
-                        {Number(fac.distance_m ?? fac.distance_meters ?? 0).toFixed(0)}m
+                        {Math.min(Number(fac.distance_m ?? fac.distance_meters ?? 0), 1000).toFixed(0)}m
                       </div>
                       <div className="font-mono text-[9px] text-secondary uppercase">
                         DISTANCE
@@ -356,7 +357,7 @@ export function EvidenceStackModal({
               </div>
             ) : (
               <div className="text-secondary font-body-sm p-4 border border-outline-variant bg-surface-container-low text-center italic">
-                No recognized industrial facilities within 5km radius.
+                No recognized industrial facilities within 1000m radius.
               </div>
             )}
 
@@ -367,7 +368,7 @@ export function EvidenceStackModal({
               <div className="bg-black p-4 font-mono text-[10px] text-green-400 min-h-32 max-h-48 overflow-y-auto whitespace-pre">
 {`[SYS] Initializing classification pipeline...
 [SYS] Fetched coordinates ${firms.latitude}, ${firms.longitude}
-[OSM] Queried radius 5000m. Found ${context.facility_count_in_radius} facilities.
+[OSM] Queried radius 1000m. Found ${context.facility_count_in_radius} facilities.
 [AI]  Invoking model VERTEX-CLF-1.0
 [AI]  Payload: FRP ${firms.frp}, DAYNIGHT ${firms.daynight}
 [AI]  Response: ${classification.classification} (Conf: ${classification.confidence_score})

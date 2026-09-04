@@ -50,8 +50,8 @@ async def classify_hotspot_with_context(hotspot: FIRMSHotspot, osm_context: OSMC
     is_daytime = hotspot.daynight == 'D'
     
     nearest_dist = osm_context.nearest_facility_distance
-    near_industry = nearest_dist is not None and nearest_dist < 5000
-    very_near_industry = nearest_dist is not None and nearest_dist < 1000
+    near_industry = nearest_dist is not None and nearest_dist <= 1000
+    very_near_industry = nearest_dist is not None and nearest_dist < 500
     
     classification_result = None
     
@@ -60,7 +60,7 @@ async def classify_hotspot_with_context(hotspot: FIRMSHotspot, osm_context: OSMC
             classification=ClassificationEnum.GAS_FLARE,
             confidence_score=0.8,
             explanation="High FRP very near industrial facility.",
-            evidence=["FRP > 50", "Distance < 1000m"],
+            evidence=["FRP > 50", "Distance < 500m"],
             source_data={"method": "rule_based"}
         )
     elif near_industry and frp < 10:
@@ -68,7 +68,7 @@ async def classify_hotspot_with_context(hotspot: FIRMSHotspot, osm_context: OSMC
             classification=ClassificationEnum.PERSISTENT_INDUSTRIAL_SOURCE,
             confidence_score=0.7,
             explanation="Low FRP near industrial facility.",
-            evidence=["FRP < 10", "Distance < 5000m"],
+            evidence=["FRP < 10", "Distance < 1000m"],
             source_data={"method": "rule_based"}
         )
     elif not near_industry and frp > 100:
@@ -76,7 +76,7 @@ async def classify_hotspot_with_context(hotspot: FIRMSHotspot, osm_context: OSMC
             classification=ClassificationEnum.WILDFIRE_FOREST_FIRE,
             confidence_score=0.75,
             explanation="Large FRP far from industry.",
-            evidence=["FRP > 100", "No industry within 5km"],
+            evidence=["FRP > 100", "No industry within 1km"],
             source_data={"method": "rule_based"}
         )
     elif not near_industry and not osm_context.near_water and frp < 25 and is_daytime:
@@ -84,7 +84,7 @@ async def classify_hotspot_with_context(hotspot: FIRMSHotspot, osm_context: OSMC
             classification=ClassificationEnum.AGRICULTURAL_BURN,
             confidence_score=0.7,
             explanation="Low/moderate FRP far from industry during daytime.",
-            evidence=["FRP < 25", "Daytime", "No industry within 5km"],
+            evidence=["FRP < 25", "Daytime", "No industry within 1km"],
             source_data={"method": "rule_based"}
         )
         

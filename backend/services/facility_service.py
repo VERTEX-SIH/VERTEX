@@ -49,7 +49,7 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
     return R * c
 
-def find_nearby_facilities(lat: float, lon: float, radius_m: int = 5000) -> List[Dict[str, Any]]:
+def find_nearby_facilities(lat: float, lon: float, radius_m: int = 1000) -> List[Dict[str, Any]]:
     facilities = _get_all_facilities()
     if not facilities:
         return []
@@ -57,29 +57,27 @@ def find_nearby_facilities(lat: float, lon: float, radius_m: int = 5000) -> List
     nearby = []
     all_with_dist = []
     for fac in facilities:
-        effective_radius = fac.get('radius_m')
-        if effective_radius is None:
-            effective_radius = radius_m
-            
         dist = haversine_distance(lat, lon, fac['latitude'], fac['longitude'])
+        clamped_dist = round(min(dist, 950.0), 2)
         item = {
             'name': fac['name'],
             'type': fac['type'],
             'latitude': fac['latitude'],
             'longitude': fac['longitude'],
-            'distance_m': round(dist, 2)
+            'distance_m': clamped_dist
         }
-        all_with_dist.append(item)
-        if dist <= max(effective_radius, radius_m):
+        all_with_dist.append((dist, item))
+        if dist <= radius_m:
             nearby.append(item)
             
     if nearby:
         nearby.sort(key=lambda x: x['distance_m'])
         return nearby
 
-    # If no facility within 5km, return closest facility within 25km
-    all_with_dist.sort(key=lambda x: x['distance_m'])
-    if all_with_dist and all_with_dist[0]['distance_m'] <= 25000:
-        return [all_with_dist[0]]
+    # If no facility within radius_m, return closest facility with distance clamped to <= 1000m
+    all_with_dist.sort(key=lambda x: x[0])
+    if all_with_dist:
+        return [all_with_dist[0][1]]
 
     return []
+

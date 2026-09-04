@@ -1,4 +1,4 @@
-﻿import { ClassifiedHotspot, ClassificationType } from '@/types';
+import { ClassifiedHotspot, ClassificationType } from '@/types';
 
 export const DEMO_HOTSPOTS: ClassifiedHotspot[] = [
   {
@@ -23,10 +23,10 @@ export const DEMO_HOTSPOTS: ClassifiedHotspot[] = [
     classification: {
       classification: ClassificationType.WILDFIRE_FOREST_FIRE,
       confidence_score: 0.75,
-      explanation: "High Fire Radiative Power (61.3 MW) detected during daytime with zero industrial facilities within 5km. The coordinates locate to a forested and hilly region in Southern India (Sathyamangalam region), where intense thermal anomalies typically represent forest fires.",
+      explanation: "High Fire Radiative Power (61.3 MW) detected during daytime with zero industrial facilities within 1km. The coordinates locate to a forested and hilly region in Southern India (Sathyamangalam region), where intense thermal anomalies typically represent forest fires.",
       evidence: [
         "High FRP of 61.3 MW indicates a high-intensity vegetation fire",
-        "Zero industrial facilities identified within 5 km radius",
+        "Zero industrial facilities identified within 1 km radius",
         "Location corresponds to forested/hilly terrain"
       ],
       risk_score: 85.0,

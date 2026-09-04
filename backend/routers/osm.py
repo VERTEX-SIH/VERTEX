@@ -25,7 +25,7 @@ def _synthetic_to_hotspot(value: str) -> Optional[FIRMSHotspot]:
         return None
 
 @router.get("/industrial")
-async def get_industrial(lat: float = Query(...), lon: float = Query(...), radius: int = Query(5000)):
+async def get_industrial(lat: float = Query(...), lon: float = Query(...), radius: int = Query(1000)):
     live_facilities = await query_overpass(lat, lon, radius)
     if live_facilities is not None:
         return {"facilities": live_facilities, "source": "LIVE", "query_status": "SUCCESS"}

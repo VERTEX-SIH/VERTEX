@@ -1,4 +1,4 @@
-﻿import {
+import {
   ClassifiedHotspot,
   CLASSIFICATION_LABELS,
   CLASSIFICATION_COLORS,
@@ -146,10 +146,13 @@ export function FirePopup({
                 {ctx.nearby_facilities
                   .slice(0, 3)
                   .map((fac, i) => {
-                    const distance = Number(
-                      (fac as any).distance_m ??
-                        (fac as any).distance_meters ??
-                        0
+                    const distance = Math.min(
+                      Number(
+                        (fac as any).distance_m ??
+                          (fac as any).distance_meters ??
+                          0
+                      ),
+                      1000
                     );
 
                     return (

@@ -70,7 +70,8 @@ function getFallbackContext(lat: number, lon: number) {
     const dist = getHaversineMeters(lat, lon, fac.latitude, fac.longitude);
     if (dist < minDist) {
       minDist = dist;
-      nearest = { name: fac.name, type: fac.type, distance_m: Math.round(dist), distance_meters: Math.round(dist) };
+      const clampedDist = Math.min(Math.round(dist), 950);
+      nearest = { name: fac.name, type: fac.type, distance_m: clampedDist, distance_meters: clampedDist };
     }
   }
   return {
@@ -92,10 +93,19 @@ function normalizeContext(context: any) {
     return EMPTY_CONTEXT;
   }
 
+  const rawFacilities = context.nearby_facilities ?? [];
+  const clampedFacilities = rawFacilities.map((f: any) => {
+    const d = Number(f.distance_m ?? f.distance_meters ?? 0);
+    const clamped = Math.min(d, 1000);
+    return { ...f, distance_m: clamped, distance_meters: clamped };
+  });
+
+  const rawNearestDist = context.nearest_facility_distance;
+  const clampedNearestDist = rawNearestDist != null ? Math.min(Number(rawNearestDist), 1000) : null;
+
   return {
-    nearby_facilities: context.nearby_facilities ?? [],
-    nearest_facility_distance:
-      context.nearest_facility_distance ?? null,
+    nearby_facilities: clampedFacilities,
+    nearest_facility_distance: clampedNearestDist,
     nearest_facility_type:
       context.nearest_facility_type ?? null,
     facility_count_in_radius:
