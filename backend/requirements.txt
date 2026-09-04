@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-dotenv
+httpx
+google-genai
+supabase
+geopandas
+shapely
+slowapi
+apscheduler
+pytest
+python-multipart

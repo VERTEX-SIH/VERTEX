@@ -1,0 +1,62 @@
+# ============================================
+# VERTEX — .gitignore
+# ============================================
+
+# --- Secrets & Credentials (CRITICAL) ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.cert
+**/FIRMS MAP KEY*
+**/firms*key*
+**/api*key*
+**/credentials*
+**/secrets*
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- ML Models (large files) ---
+backend/ml/models/*.pkl
+backend/ml/models/*.joblib
+backend/ml/models/*.h5
+backend/ml/models/*.pt
+
+# --- Logs ---
+*.log
+logs/
