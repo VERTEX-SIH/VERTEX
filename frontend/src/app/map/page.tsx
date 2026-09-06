@@ -18,6 +18,8 @@ import {
 } from '@/lib/constants';
 
 import { useGlobalState } from '@/lib/GlobalStateContext';
+import { useVertexUser } from '@/lib/auth-session';
+import { AuthRequiredDialog } from '@/components/auth/AuthRequiredDialog';
 
 const MapView = dynamic(
   () =>
@@ -37,7 +39,7 @@ interface FilterState {
   riskLevels: string[];
 }
 
-export default function DashboardPage() {
+function MapWorkspace() {
   const {
     hotspots,
     mapHotspots,
@@ -479,4 +481,14 @@ export default function DashboardPage() {
       />
     </>
   );
+}
+
+export default function DashboardPage() {
+  const { user, ready } = useVertexUser();
+
+  if (!ready) {
+    return <div className="flex-1 bg-surface-dim" />;
+  }
+
+  return user ? <MapWorkspace /> : <AuthRequiredDialog />;
 }

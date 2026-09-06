@@ -2,6 +2,7 @@ import base64
 import logging
 import math
 import time
+import zlib
 from datetime import date, timedelta
 from typing import Optional, Dict, Any
 import httpx
@@ -13,6 +14,31 @@ TOKEN_URL = "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/
 PROCESS_URL = "https://sh.dataspace.copernicus.eu/api/v1/process"
 _token: Optional[str] = None
 _token_expires_at: float = 0.0
+
+
+def _is_image_empty_or_black(content: bytes) -> bool:
+    """Check if PNG content is empty, invalid, or pitch black (no satellite pass in window)."""
+    if not content or len(content) < 2500:
+        return True
+    try:
+        if not content.startswith(b"\x89PNG\r\n\x1a\n"):
+            return False
+        chunks = []
+        offset = 8
+        content_len = len(content)
+        while offset < content_len - 12:
+            chunk_len = int.from_bytes(content[offset:offset + 4], "big")
+            chunk_type = content[offset + 4:offset + 8]
+            if chunk_type == b"IDAT":
+                chunks.append(content[offset + 8:offset + 8 + chunk_len])
+            offset += 12 + chunk_len
+        if not chunks:
+            return True
+        decompressed = zlib.decompress(b"".join(chunks))
+        # If all decompressed bytes are <= 5, it is pitch black with no visible terrain
+        return max(decompressed) <= 5
+    except Exception:
+        return len(content) < 5000
 
 
 def _date_window(observation_date: str) -> tuple[str, str]:
@@ -109,16 +135,22 @@ function evaluatePixel(s) {
                     token = await _get_token(client)
                     r = await client.post(PROCESS_URL, json=body, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
                 if r.status_code == 200 and r.content:
-                    b64 = base64.b64encode(r.content).decode("ascii")
-                    return {
-                        "available": True,
-                        "source": "Sentinel-2 SWIR Thermal Combustion Composite",
-                        "acquisition_window": {"from": start, "to": end},
-                        "center": {"latitude": lat, "longitude": lon},
-                        "image_base64": b64,
-                        "image_data_url": f"data:image/png;base64,{b64}",
-                        "mime_type": "image/png",
-                    }
+                    if _is_image_empty_or_black(r.content):
+                        logger.info(
+                            f"Sentinel-2 scene for ({lat}, {lon}) returned empty/black pixel data. "
+                            "Falling back to Esri High-Resolution World Imagery."
+                        )
+                    else:
+                        b64 = base64.b64encode(r.content).decode("ascii")
+                        return {
+                            "available": True,
+                            "source": "Sentinel-2 SWIR Thermal Combustion Composite",
+                            "acquisition_window": {"from": start, "to": end},
+                            "center": {"latitude": lat, "longitude": lon},
+                            "image_base64": b64,
+                            "image_data_url": f"data:image/png;base64,{b64}",
+                            "mime_type": "image/png",
+                        }
         except Exception as exc:
             logger.warning(f"Sentinel-2 CDSE fetch fast-fallback to Esri: {exc}")
 

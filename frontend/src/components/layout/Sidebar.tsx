@@ -34,6 +34,8 @@ export function Sidebar({
     streamFilter,
     setStreamFilter,
     hotspots: globalHotspots,
+    mapStyle,
+    setMapStyle,
   } = useGlobalState();
 
   const sourceHotspots =
@@ -715,16 +717,93 @@ export function Sidebar({
         {/* ================================================= */}
 
         {activeTab === 'LAYERS' && (
-          <div className="flex flex-col items-center justify-center h-40 text-secondary">
+          <div className="p-4 space-y-4">
+            <div>
+              <div className="font-mono-label text-[10px] text-secondary mb-3 tracking-widest uppercase">
+                Base Map Imagery & Theme
+              </div>
+              <div className="space-y-2">
+                {[
+                  {
+                    id: 'Esri World Imagery (Satellite)',
+                    name: 'Satellite Imagery',
+                    provider: 'Esri World Imagery',
+                    icon: 'satellite_alt',
+                    badge: 'PHOTOGRAPHIC',
+                  },
+                  {
+                    id: 'Dark Canvas',
+                    name: 'Dark Canvas',
+                    provider: 'Dark OpenStreetMap Canvas',
+                    icon: 'dark_mode',
+                    badge: 'CLEAN DARK',
+                  },
+                  {
+                    id: 'Dark Tactical',
+                    name: 'Dark Tactical',
+                    provider: 'OpenFreeMap Vector Tiles',
+                    icon: 'contrast',
+                    badge: 'TACTICAL',
+                  },
+                  {
+                    id: 'OSM Light',
+                    name: 'Street / Terrain Light',
+                    provider: 'OpenStreetMap',
+                    icon: 'map',
+                    badge: 'REFERENCE',
+                  },
+                ].map((layer) => {
+                  const isSelected =
+                    mapStyle === layer.id ||
+                    (layer.id.includes('Satellite') && mapStyle === 'Satellite') ||
+                    (layer.id === 'Dark Canvas' && (mapStyle === 'Carto Dark Matter' || mapStyle === 'Carto Dark' || mapStyle === 'Esri Dark Canvas'));
 
-            <span className="material-symbols-outlined text-3xl mb-2 opacity-50">
-              layers_clear
-            </span>
-
-            <div className="font-mono text-[10px] uppercase tracking-widest">
-              NO CUSTOM LAYERS
+                  return (
+                    <button
+                      key={layer.id}
+                      type="button"
+                      onClick={() => setMapStyle(layer.id)}
+                      className={`w-full text-left p-3 border transition-all flex items-start gap-3 cursor-pointer ${
+                        isSelected
+                          ? 'border-primary bg-primary/10 shadow-sm'
+                          : 'border-outline-variant bg-surface hover:border-primary/50'
+                      }`}
+                    >
+                      <span
+                        className={`material-symbols-outlined text-[20px] mt-0.5 ${
+                          isSelected ? 'text-primary' : 'text-secondary'
+                        }`}
+                      >
+                        {layer.icon}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <span className={`font-mono text-[11px] font-bold uppercase ${
+                            isSelected ? 'text-primary' : 'text-on-surface'
+                          }`}>
+                            {layer.name}
+                          </span>
+                          <span className={`font-mono text-[8px] px-1.5 py-0.5 border ${
+                            isSelected
+                              ? 'border-primary/40 bg-primary/20 text-primary'
+                              : 'border-outline-variant bg-surface-container text-secondary'
+                          }`}>
+                            {layer.badge}
+                          </span>
+                        </div>
+                        <div className="font-mono text-[9px] text-secondary mt-0.5 truncate">
+                          {layer.provider}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
+            <div className="pt-3 border-t border-outline-variant text-[10px] text-secondary leading-relaxed font-mono">
+              Base tiles load with caching enabled. Select <strong className="text-primary">Satellite Imagery</strong> for high-resolution aerial context around fire hotspots.
+            </div>
           </div>
         )}
 

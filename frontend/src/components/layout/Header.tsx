@@ -6,12 +6,19 @@ import { fetchSystemStatus } from '@/lib/api';
 import { SystemStatus } from '@/types';
 import { SettingsModal } from './SettingsModal';
 import { AccountModal } from './AccountModal';
+import { clearVertexUser, useVertexUser } from '@/lib/auth-session';
 
 export function Header() {
   const [time, setTime] = useState<string>('');
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
+  const { user, ready: authReady } = useVertexUser();
+
+  const handleSignOut = () => {
+    clearVertexUser();
+    window.location.assign('/');
+  };
 
   /*
    * =========================================================
@@ -212,6 +219,55 @@ export function Header() {
           >
             ANALYTICS
           </Link>
+
+          <Link
+            href="/map"
+            className="
+              h-full
+              min-w-[76px]
+              px-4
+              flex
+              items-center
+              justify-center
+              font-mono-label
+              text-[10px]
+              tracking-widest
+              text-secondary
+              hover:text-primary
+              hover:bg-surface-container
+              transition-colors
+            "
+          >
+            MAP
+          </Link>
+
+          {authReady && user?.role === 'admin' && (
+            <Link
+              href="/admin"
+              className="
+                h-full
+                min-w-[85px]
+                px-3
+                flex
+                items-center
+                justify-center
+                gap-1.5
+                font-mono-label
+                text-[10px]
+                font-bold
+                tracking-widest
+                text-primary
+                bg-primary/10
+                hover:bg-primary/20
+                border-l
+                border-outline-variant
+                transition-colors
+              "
+            >
+              <span className="material-symbols-outlined text-[15px]">admin_panel_settings</span>
+              ADMIN
+            </Link>
+          )}
         </nav>
 
         {/* =================================================
@@ -344,6 +400,33 @@ export function Header() {
           border-outline-variant
         "
       >
+        {authReady && (user ? (
+          <>
+            <div className="hidden h-full max-w-[180px] items-center gap-1.5 border-r border-outline-variant px-3 sm:flex">
+              <span className="material-symbols-outlined text-[18px] text-primary">
+                {user.role === 'admin' ? 'shield_person' : 'verified_user'}
+              </span>
+              <span className="truncate font-mono text-[10px] font-bold tracking-wider text-on-surface">{user.username}</span>
+              {user.role === 'admin' && (
+                <span className="border border-primary bg-primary/20 px-1 py-0.2 font-mono text-[8px] font-bold tracking-widest text-primary">
+                  ADMIN
+                </span>
+              )}
+            </div>
+            <button onClick={handleSignOut} className="hidden h-full items-center gap-1 px-3 font-mono-label text-[10px] tracking-widest text-secondary transition-colors hover:bg-surface-container-high hover:text-primary sm:flex" title="Sign out">
+              <span className="material-symbols-outlined text-[17px]">logout</span>SIGN OUT
+            </button>
+          </>
+        ) : (
+          <>
+            <Link href="/login?mode=admin" className="hidden h-full items-center gap-1 border-r border-outline-variant px-3 font-mono-label text-[10px] font-bold tracking-widest text-primary transition-colors hover:bg-primary/10 sm:flex" title="Admin Portal Sign In">
+              <span className="material-symbols-outlined text-[15px]">shield_person</span>ADMIN LOGIN
+            </Link>
+            <Link href="/login" className="hidden h-full items-center justify-center px-3 font-mono-label text-[10px] tracking-widest text-secondary transition-colors hover:bg-surface-container-high hover:text-primary sm:flex">SIGN IN</Link>
+            <Link href="/signup" className="hidden h-full items-center justify-center bg-primary px-3 font-mono-label text-[10px] font-bold tracking-widest text-on-primary transition-colors hover:bg-primary-container hover:text-on-primary-container sm:flex">CREATE ACCOUNT</Link>
+          </>
+        ))}
+
         <button
           onClick={() => setShowSettings(true)}
           title="Settings"

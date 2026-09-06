@@ -64,12 +64,13 @@ export function MapView({
   const geojsonData = useMemo(() => ({
     type: 'FeatureCollection' as const,
     features: visibleHotspots.map((hotspot) => {
-      const type = hotspot?.classification?.classification as ClassificationType;
+      const type = (hotspot?.classification?.classification || '') as ClassificationType;
       const isPending = !type || type === ClassificationType.UNCLASSIFIED;
-      const color = isPending ? '#8a8a8a' : (CLASSIFICATION_COLORS[type] || CLASSIFICATION_COLORS[ClassificationType.UNKNOWN_UNCERTAIN]);
+      const color = isPending ? '#8a8a8a' : (CLASSIFICATION_COLORS[type] || '#ea580c');
       const riskLevel = String(hotspot?.classification?.risk_level ?? '').toUpperCase();
       const riskScore = Number(hotspot?.classification?.risk_score ?? 0);
       const isHighRisk = riskLevel === 'HIGH' || riskLevel === 'CRITICAL' || riskScore >= 70;
+      const isPriority = !isPending || isHighRisk;
       const longitude = Number(hotspot?.hotspot?.longitude);
       const latitude = Number(hotspot?.hotspot?.latitude);
       if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null;
@@ -78,7 +79,15 @@ export function MapView({
         type: 'Feature' as const,
         id,
         geometry: { type: 'Point' as const, coordinates: [longitude, latitude] },
-        properties: { id, type, isPending, isHighRisk, color, frp: Number(hotspot?.hotspot?.frp ?? 0) },
+        properties: {
+          id,
+          type: type || ClassificationType.UNCLASSIFIED,
+          isPending,
+          isHighRisk,
+          isPriority,
+          color,
+          frp: Number(hotspot?.hotspot?.frp ?? 0),
+        },
       };
     }).filter((feature): feature is NonNullable<typeof feature> => feature !== null),
   }), [visibleHotspots]);
@@ -131,21 +140,101 @@ export function MapView({
   }, []);
 
   const baseMapStyle = useMemo(() => {
-    const dark = mapStyle === 'Esri Dark Canvas' || mapStyle === 'Carto Dark';
-    const tileUrls = dark
-      ? ['https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}']
-      : ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'];
-    const attribution = dark ? 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ' : '&copy; OpenStreetMap contributors';
+    const isSatellite =
+      mapStyle === 'Esri World Imagery (Satellite)' ||
+      mapStyle === 'Satellite' ||
+      mapStyle === 'Esri Satellite';
+
+    const isDark =
+      mapStyle === 'Dark Tactical' ||
+      mapStyle === 'OpenFreeMap Dark' ||
+      mapStyle === 'Dark Canvas';
+
+    if (isSatellite) {
+      return {
+        version: 8,
+        sources: {
+          'base-tiles': {
+            type: 'raster',
+            tiles: [
+              'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            ],
+            tileSize: 256,
+            attribution:
+              'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+            maxzoom: 19,
+          },
+        },
+        layers: [
+          {
+            id: 'base-tiles-layer',
+            type: 'raster',
+            source: 'base-tiles',
+            minzoom: 0,
+            maxzoom: 22,
+          },
+        ],
+      };
+    }
+
+    if (isDark) {
+      return {
+        version: 8,
+        sources: {
+          'base-tiles': {
+            type: 'raster',
+            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+            tileSize: 256,
+            attribution: '&copy; OpenStreetMap contributors',
+            maxzoom: 19,
+          },
+        },
+        layers: [
+          {
+            id: 'base-tiles-layer',
+            type: 'raster',
+            source: 'base-tiles',
+            minzoom: 0,
+            maxzoom: 22,
+            paint: {
+              'raster-brightness-max': 0.38,
+              'raster-saturation': -0.85,
+              'raster-contrast': 0.25,
+            },
+          },
+        ],
+      };
+    }
+
+    // Default base map: clean OpenStreetMap Light (exact style from user's screenshot)
     return {
       version: 8,
-      sources: { 'osm-tiles': { type: 'raster', tiles: tileUrls, tileSize: 256, attribution, maxzoom: 19 } },
-      layers: [{ id: 'osm-tiles-layer', type: 'raster', source: 'osm-tiles', minzoom: 0, maxzoom: 19 }],
+      sources: {
+        'osm-tiles': {
+          type: 'raster',
+          tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+          tileSize: 256,
+          attribution: '&copy; OpenStreetMap contributors',
+          maxzoom: 19,
+        },
+      },
+      layers: [
+        {
+          id: 'osm-tiles-layer',
+          type: 'raster',
+          source: 'osm-tiles',
+          minzoom: 0,
+          maxzoom: 22,
+        },
+      ],
     };
   }, [mapStyle]);
 
   const selectedLongitude = Number(selectedHotspot?.hotspot?.longitude);
   const selectedLatitude = Number(selectedHotspot?.hotspot?.latitude);
   const hasValidSelectedCoordinates = Number.isFinite(selectedLongitude) && Number.isFinite(selectedLatitude);
+  const selectedIdStr = String(selectedHotspot?.id ?? '');
+  const selectedIdRaw = selectedIdStr.replace(/^vtx-/i, '');
 
   if (!mounted) return null;
 
@@ -156,6 +245,14 @@ export function MapView({
         {...viewState}
         onMove={onMove}
         onMoveEnd={onMoveEnd}
+        onError={(e) => {
+          if (
+            e?.error?.name === 'AbortError' ||
+            String(e?.error?.message || '').includes('aborted')
+          ) {
+            return;
+          }
+        }}
         mapStyle={baseMapStyle as any}
         mapLib={maplibregl}
         interactiveLayerIds={['unclustered-point']}
@@ -171,21 +268,51 @@ export function MapView({
             type="circle"
             paint={{
               'circle-color': [
-                'match', ['get', 'type'],
-                ClassificationType.INDUSTRIAL_FIRE, CLASSIFICATION_COLORS[ClassificationType.INDUSTRIAL_FIRE],
-                ClassificationType.PERSISTENT_INDUSTRIAL_SOURCE, CLASSIFICATION_COLORS[ClassificationType.PERSISTENT_INDUSTRIAL_SOURCE],
-                ClassificationType.GAS_FLARE, CLASSIFICATION_COLORS[ClassificationType.GAS_FLARE],
-                ClassificationType.WILDFIRE_FOREST_FIRE, CLASSIFICATION_COLORS[ClassificationType.WILDFIRE_FOREST_FIRE],
-                ClassificationType.AGRICULTURAL_BURN, CLASSIFICATION_COLORS[ClassificationType.AGRICULTURAL_BURN],
-                ClassificationType.MINING_THERMAL_ACTIVITY, CLASSIFICATION_COLORS[ClassificationType.MINING_THERMAL_ACTIVITY],
-                ClassificationType.OTHER_THERMAL_ANOMALY, CLASSIFICATION_COLORS[ClassificationType.OTHER_THERMAL_ANOMALY],
-                ClassificationType.UNKNOWN_UNCERTAIN, CLASSIFICATION_COLORS[ClassificationType.UNKNOWN_UNCERTAIN],
+                'case',
+                ['get', 'isPending'],
                 '#8a8a8a',
+                [
+                  'match',
+                  ['get', 'type'],
+                  ClassificationType.INDUSTRIAL_FIRE,
+                  '#dc2626',
+                  ClassificationType.PERSISTENT_INDUSTRIAL_SOURCE,
+                  '#ea580c',
+                  ClassificationType.GAS_FLARE,
+                  '#f59e0b',
+                  ClassificationType.WILDFIRE_FOREST_FIRE,
+                  '#16a34a',
+                  ClassificationType.AGRICULTURAL_BURN,
+                  '#ca8a04',
+                  ClassificationType.MINING_THERMAL_ACTIVITY,
+                  '#7c3aed',
+                  ClassificationType.OTHER_THERMAL_ANOMALY,
+                  '#6366f1',
+                  ClassificationType.UNKNOWN_UNCERTAIN,
+                  '#ea580c',
+                  '#ea580c',
+                ],
               ],
-              'circle-radius': ['case', ['==', ['get', 'id'], String(selectedHotspot?.id ?? '')], 11, ['get', 'isHighRisk'], 7, ['get', 'isPending'], 5, 5],
-              'circle-opacity': ['case', ['==', ['get', 'id'], String(selectedHotspot?.id ?? '')], 1, ['get', 'isPending'], 0.55, 0.85],
-              'circle-stroke-width': ['case', ['==', ['get', 'id'], String(selectedHotspot?.id ?? '')], 3, ['get', 'isHighRisk'], 2, 1],
-              'circle-stroke-color': ['case', ['==', ['get', 'id'], String(selectedHotspot?.id ?? '')], '#ffffff', ['get', 'isHighRisk'], '#ff3b30', ['get', 'isPending'], '#555555', '#111111'],
+              'circle-radius': [
+                'case',
+                ['any', ['==', ['get', 'id'], selectedIdStr], ['==', ['get', 'id'], selectedIdRaw]],
+                7,
+                ['get', 'isHighRisk'],
+                6.5,
+                ['get', 'isPending'],
+                5,
+                6,
+              ],
+              'circle-opacity': ['case', ['get', 'isPending'], 0.65, 1.0],
+              'circle-stroke-width': [
+                'case',
+                ['any', ['==', ['get', 'id'], selectedIdStr], ['==', ['get', 'id'], selectedIdRaw]],
+                2,
+                ['get', 'isHighRisk'],
+                2,
+                1.5,
+              ],
+              'circle-stroke-color': ['case', ['get', 'isPending'], '#444444', '#111111'],
             }}
           />
         </Source>

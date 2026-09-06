@@ -250,9 +250,9 @@ export async function fetchClassifiedHotspots(
   country = 'IND',
   days = 1
 ): Promise<ClassifiedHotspot[]> {
-
-  const res =
-    await fetch(
+  try {
+    const res =
+      await fetch(
       `${API_URL}/api/v1/hotspots/classified?country=${country}&days=${days}`
     );
 
@@ -512,7 +512,16 @@ export async function fetchClassifiedHotspots(
   }
 
 
-  return [];
+    return [];
+  } catch (err: any) {
+    if (
+      err?.name === 'AbortError' ||
+      String(err?.message || '').includes('aborted')
+    ) {
+      return [];
+    }
+    throw err;
+  }
 }
 
 

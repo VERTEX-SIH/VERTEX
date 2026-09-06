@@ -33,6 +33,24 @@ const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   'http://localhost:8000';
 
+// Suppress harmless browser AbortErrors caused by component unmounting,
+// rapid state updates, or MapLibre GL tile cancellation.
+if (typeof window !== 'undefined') {
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason;
+    const name = reason?.name || reason?.constructor?.name;
+    const message = String(reason?.message || reason || '');
+    if (
+      name === 'AbortError' ||
+      message.includes('signal is aborted') ||
+      message.includes('aborted without reason') ||
+      message.includes('The user aborted a request')
+    ) {
+      event.preventDefault();
+    }
+  });
+}
+
 
 /*
  * =========================================================
@@ -198,79 +216,57 @@ function mergeClassifiedIntoMap(
   currentMapData: ClassifiedHotspot[],
   classifiedData: ClassifiedHotspot[]
 ): ClassifiedHotspot[] {
+  if (!currentMapData || currentMapData.length === 0) {
+    return classifiedData || [];
+  }
 
-  const classifiedByKey =
-    new Map<
-      string,
-      ClassifiedHotspot
-    >();
+  const classifiedByKey = new Map<string, ClassifiedHotspot>();
+  const classifiedById = new Map<string, ClassifiedHotspot>();
 
-  for (
-    const classified
-    of classifiedData
-  ) {
-
-    const key =
-      getObservationKey(
-        classified
-      );
-
+  for (const classified of classifiedData) {
+    const key = getObservationKey(classified);
     if (key) {
-      classifiedByKey.set(
-        key,
-        classified
-      );
+      classifiedByKey.set(key, classified);
+    }
+    if (classified.id) {
+      classifiedById.set(String(classified.id), classified);
     }
   }
 
-  return currentMapData.map(
-    (
-      liveHotspot
-    ) => {
+  const matchedClassifiedIds = new Set<string>();
 
-      const key =
-        getObservationKey(
-          liveHotspot
-        );
+  const mergedLive = currentMapData.map((liveHotspot) => {
+    const key = getObservationKey(liveHotspot);
+    const classified =
+      (key ? classifiedByKey.get(key) : undefined) ||
+      classifiedById.get(String(liveHotspot.id));
 
-      if (!key) {
-        return liveHotspot;
-      }
-
-      const classified =
-        classifiedByKey.get(
-          key
-        );
-
-      if (!classified) {
-        return liveHotspot;
-      }
-
-      /*
-       * Preserve the live FIRMS observation, but replace the
-       * synthetic PENDING classification and context with the
-       * authoritative backend state.
-       */
-
-      return {
-        ...liveHotspot,
-
-        id:
-          classified.id,
-
-        hotspot: {
-          ...liveHotspot.hotspot,
-          ...classified.hotspot,
-        },
-
-        classification:
-          classified.classification,
-
-        context:
-          classified.context,
-      };
+    if (!classified) {
+      return liveHotspot;
     }
-  );
+
+    matchedClassifiedIds.add(String(classified.id));
+
+    return {
+      ...liveHotspot,
+      id: classified.id,
+      hotspot: {
+        ...liveHotspot.hotspot,
+        ...classified.hotspot,
+      },
+      classification: classified.classification,
+      context: classified.context,
+    };
+  });
+
+  const result = [...mergedLive];
+  for (const classified of classifiedData) {
+    if (!matchedClassifiedIds.has(String(classified.id))) {
+      result.push(classified);
+    }
+  }
+
+  return result;
 }
 
 
@@ -412,7 +408,7 @@ export function GlobalStateProvider({
     mapStyle,
     setMapStyleState,
   ] = useState<string>(
-    'Carto Dark Matter'
+    'OSM Light'
   );
 
 
@@ -567,11 +563,10 @@ export function GlobalStateProvider({
         'vtx_mapStyle'
       );
 
-    if (savedStyle) {
-
-      setMapStyleState(
-        savedStyle
-      );
+    if (savedStyle && savedStyle === 'Esri World Imagery (Satellite)') {
+      setMapStyleState(savedStyle);
+    } else {
+      setMapStyleState('OSM Light');
     }
 
 
@@ -670,9 +665,9 @@ export function GlobalStateProvider({
     async (): Promise<
       ClassifiedHotspot[]
     > => {
-
-      const response =
-        await fetch(
+      try {
+        const response =
+          await fetch(
           `${API_BASE_URL}/api/v1/firms/realtime?country=IND&days=1`,
           {
             cache: 'no-store',
@@ -880,6 +875,15 @@ export function GlobalStateProvider({
           ): hotspot is ClassifiedHotspot =>
             hotspot !== null
         );
+      } catch (err: any) {
+        if (
+          err?.name === 'AbortError' ||
+          String(err?.message || '').includes('aborted')
+        ) {
+          return [];
+        }
+        throw err;
+      }
     };
 
 
@@ -1128,7 +1132,12 @@ export function GlobalStateProvider({
             (
               enrichmentError
             ) => {
-
+              if (
+                enrichmentError?.name === 'AbortError' ||
+                String(enrichmentError?.message || '').includes('aborted')
+              ) {
+                return;
+              }
               console.warn(
                 '[VERTEX] Background OSM enrichment failed:',
                 enrichmentError
@@ -1160,6 +1169,13 @@ export function GlobalStateProvider({
       } catch (
         err: any
       ) {
+
+        if (
+          err?.name === 'AbortError' ||
+          String(err?.message || '').includes('aborted')
+        ) {
+          return;
+        }
 
         console.warn(
           'Database connection failed. Falling back to offline demo cache.',

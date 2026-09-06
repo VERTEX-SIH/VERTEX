@@ -1,457 +1,121 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import dynamic from 'next/dynamic';
+import Link from 'next/link';
+import { useVertexUser } from '@/lib/auth-session';
 
-import {
-  ClassifiedHotspot,
-  ClassificationType,
-} from '@/types';
+const capabilities = [
+  { icon: 'satellite_alt', title: 'Observe', description: 'Continuously collect satellite thermal observations from the FIRMS feed.', number: '01' },
+  { icon: 'psychology', title: 'Understand', description: 'Use AI and nearby facility context to separate industrial activity from fire risk.', number: '02' },
+  { icon: 'crisis_alert', title: 'Act', description: 'Surface the most consequential events in one clear operational view.', number: '03' },
+];
 
-import { Sidebar } from '@/components/layout/Sidebar';
-import { RightPanel } from '@/components/layout/RightPanel';
-import { BottomTicker } from '@/components/layout/BottomTicker';
-
-import {
-  INDIA_CENTER,
-  INDIA_ZOOM,
-} from '@/lib/constants';
-
-import { useGlobalState } from '@/lib/GlobalStateContext';
-
-const MapView = dynamic(
-  () =>
-    import('@/components/map/MapView').then(
-      (mod) => mod.MapView
-    ),
-  {
-    ssr: false,
-  }
-);
-
-interface FilterState {
-  classifications: ClassificationType[];
-  minFrp: number;
-  maxFrp: number;
-  minConfidence: number;
-  riskLevels: string[];
-}
-
-export default function DashboardPage() {
-  const {
-    hotspots,
-    mapHotspots,
-    loading,
-    error,
-    selectedHotspot,
-    setSelectedHotspot,
-  } = useGlobalState();
-
-  /*
-   * =========================================================
-   * FILTERS
-   * =========================================================
-   *
-   * These filters apply to the classified / priority hotspot
-   * stream used by the sidebar and dashboard controls.
-   *
-   * The map itself is handled by MapView, which now consumes
-   * the complete current FIRMS observation stream through
-   * GlobalStateContext.
-   */
-
-  const [filters, setFilters] = useState<FilterState>({
-    classifications: [],
-    minFrp: 0,
-    maxFrp: 1000,
-    minConfidence: 0,
-    riskLevels: [],
-  });
-
-  /*
-   * =========================================================
-   * FILTER HOTSPOTS
-   * =========================================================
-   */
-
-  /*
-   * =========================================================
-   * MERGE CLASSIFICATION DATA INTO MAP OBSERVATIONS
-   * =========================================================
-   *
-   * The FIRMS map stream contains every current observation,
-   * while the classified stream contains the AI/enrichment data.
-   *
-   * Match them by the FIRMS observation identity (coordinates,
-   * acquisition date/time, satellite) so map markers inherit
-   * their real classification, confidence, risk and context.
-   */
-  const hotspotIdentity = (h: ClassifiedHotspot) => {
-    const lat = Number(h?.hotspot?.latitude);
-    const lon = Number(h?.hotspot?.longitude);
-    const date = String(h?.hotspot?.acq_date ?? '');
-    const timeRaw = String(h?.hotspot?.acq_time ?? '');
-    const time = timeRaw.padStart(4, '0');
-    const satellite = String(h?.hotspot?.satellite ?? '');
-
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-      return '';
-    }
-
-    return `${lat.toFixed(5)}|${lon.toFixed(5)}|${date}|${time}|${satellite}`;
-  };
-
-  const classifiedByIdentity = useMemo(() => {
-    const index = new Map<string, ClassifiedHotspot>();
-
-    for (const hotspot of hotspots) {
-      const key = hotspotIdentity(hotspot);
-      if (key) {
-        index.set(key, hotspot);
-      }
-    }
-
-    return index;
-  }, [hotspots]);
-
-  const mergedMapHotspots = useMemo(() => {
-    return (Array.isArray(mapHotspots) ? mapHotspots : []).map(
-      (mapHotspot) => {
-        const match = classifiedByIdentity.get(
-          hotspotIdentity(mapHotspot)
-        );
-
-        if (!match) {
-          return mapHotspot;
-        }
-
-        return {
-          ...mapHotspot,
-          id: match.id,
-          hotspot: {
-            ...mapHotspot.hotspot,
-            ...match.hotspot,
-          },
-          classification: match.classification,
-          context: match.context,
-        } as ClassifiedHotspot;
-      }
-    );
-  }, [mapHotspots, classifiedByIdentity]);
-
-  /*
-   * =========================================================
-   * FILTER ONE UNIFIED DATASET
-   * =========================================================
-   *
-   * The same filters are applied to:
-   *   1. Sidebar classified events
-   *   2. Map FIRMS observations
-   *
-   * This keeps the UI and map synchronized.
-   */
-  const matchesFilters = (h: ClassifiedHotspot) => {
-    const classification =
-      h?.classification?.classification ??
-      ClassificationType.UNCLASSIFIED;
-
-    const frp = Number(h?.hotspot?.frp ?? 0);
-    const confidence = Number(
-      h?.classification?.confidence_score ?? 0
-    );
-    const risk = String(
-      h?.classification?.risk_level ?? ''
-    ).toUpperCase();
-
-    if (
-      filters.classifications.length > 0 &&
-      !filters.classifications.includes(classification)
-    ) {
-      return false;
-    }
-
-    if (
-      frp < filters.minFrp ||
-      frp > filters.maxFrp
-    ) {
-      return false;
-    }
-
-    if (confidence < filters.minConfidence) {
-      return false;
-    }
-
-    if (
-      filters.riskLevels.length > 0 &&
-      !filters.riskLevels.includes(risk)
-    ) {
-      return false;
-    }
-
-    return true;
-  };
-
-  const filteredHotspots = useMemo(() => {
-    return hotspots.filter(matchesFilters);
-  }, [hotspots, filters]);
-
-  const filteredMapHotspots = useMemo(() => {
-    return mergedMapHotspots.filter(matchesFilters);
-  }, [mergedMapHotspots, filters]);
-
-
-  /*
-   * =========================================================
-   * KEEP SELECTED HOTSPOT IN SYNC
-   * =========================================================
-   *
-   * Do not maintain a second OSM-context store here.
-   *
-   * The selected hotspot already comes from GlobalStateContext,
-   * while fresh OSM enrichment is handled by RightPanel and
-   * persisted by the backend/Supabase layer.
-   */
-
-  const persistedSelectedHotspot = useMemo(() => {
-    if (!selectedHotspot) {
-      return null;
-    }
-
-    /*
-     * If the selected hotspot still exists in the current
-     * classified stream, use the latest object from that stream.
-     *
-     * This prevents stale classification/hotspot data from
-     * remaining selected after a refresh.
-     */
-
-    const currentHotspot =
-      filteredMapHotspots.find(
-        (hotspot) =>
-          String(hotspot.id) === String(selectedHotspot.id)
-      ) ??
-      hotspots.find(
-        (hotspot) =>
-          String(hotspot.id) === String(selectedHotspot.id)
-      );
-
-    return currentHotspot ?? selectedHotspot;
-  }, [selectedHotspot, hotspots, filteredMapHotspots]);
-
-  /*
-   * =========================================================
-   * SELECT HOTSPOT
-   * =========================================================
-   *
-   * MapView may call this with null when the map selection
-   * is cleared.
-   *
-   * Always handle null safely.
-   */
-
-  const handleSelectHotspot = (
-    hotspot: ClassifiedHotspot | null
-  ) => {
-    if (!hotspot) {
-      setSelectedHotspot(null);
-      return;
-    }
-
-    setSelectedHotspot(hotspot);
-  };
-
-  /*
-   * =========================================================
-   * RENDER
-   * =========================================================
-   */
+export default function HomePage() {
+  const { user } = useVertexUser();
 
   return (
-    <>
-      <div
-        className="
-          flex-1
-          relative
-          w-full
-          overflow-hidden
-          mt-[40px]
-          mb-[32px]
-        "
-      >
-        {/* =================================================
-            SIDEBAR
-            ================================================= */}
+    <main className="flex-1 min-h-0 overflow-y-auto bg-surface-dim text-on-surface">
+      <section className="relative overflow-hidden border-b border-outline-variant">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_20%,rgba(161,64,0,0.26),transparent_28%),radial-gradient(circle_at_18%_85%,rgba(234,88,12,0.12),transparent_25%)]" />
+        <div className="absolute inset-0 opacity-30 bg-[linear-gradient(to_right,#a1400017_1px,transparent_1px),linear-gradient(to_bottom,#a1400017_1px,transparent_1px)] bg-[size:52px_52px]" />
 
-        <Sidebar
-          hotspots={filteredHotspots}
-          selectedId={
-            persistedSelectedHotspot?.id
-          }
-          onSelect={handleSelectHotspot}
-          onFiltersChange={setFilters}
-        />
-
-        {/* =================================================
-            MAIN MAP
-            ================================================= */}
-
-        <main
-          className="
-            absolute
-            inset-0
-            z-0
-            bg-surface-dim
-            ml-[300px]
-            mr-[340px]
-            overflow-hidden
-          "
-        >
-          {/* ===============================================
-              LOADING
-              =============================================== */}
-
-          {loading ? (
-            <div
-              className="
-                w-full
-                h-full
-                flex
-                flex-col
-                items-center
-                justify-center
-                bg-surface-dim
-                text-secondary
-                space-y-4
-              "
-            >
-              <span
-                className="
-                  material-symbols-outlined
-                  text-4xl
-                  animate-spin
-                "
-              >
-                refresh
-              </span>
-
-              <span
-                className="
-                  font-mono
-                  text-sm
-                  tracking-widest
-                  uppercase
-                "
-              >
-                Initializing Geospatial Telemetry...
-              </span>
+        <div className="relative mx-auto grid min-h-[520px] max-w-7xl grid-cols-1 items-center gap-12 px-6 py-16 lg:grid-cols-[1.05fr_.95fr] lg:px-10">
+          <div>
+            <div className="mb-7 inline-flex items-center gap-2 border border-primary/50 bg-surface/80 px-3 py-1.5 font-mono text-[10px] font-bold tracking-[0.18em] text-primary">
+              <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" /><span className="relative inline-flex h-2 w-2 rounded-full bg-primary" /></span>
+              LIVE THERMAL INTELLIGENCE
             </div>
-          ) : error ? (
-            /* =============================================
-               ERROR
-               ============================================= */
-
-            <div
-              className="
-                w-full
-                h-full
-                flex
-                items-center
-                justify-center
-                bg-surface-dim
-              "
-            >
-              <div
-                className="
-                  bg-error-container
-                  border
-                  border-error
-                  p-6
-                  max-w-md
-                  text-center
-                  text-on-error-container
-                "
-              >
-                <span
-                  className="
-                    material-symbols-outlined
-                    text-4xl
-                    mb-2
-                    text-error
-                  "
+            <p className="mb-4 font-mono text-[11px] tracking-[0.22em] text-secondary">VERTEX / SITUATIONAL AWARENESS PLATFORM</p>
+            <h1 className="max-w-3xl font-headline-sm text-4xl leading-[1.06] tracking-tight text-on-surface sm:text-5xl lg:text-6xl">Turn heat signals into <span className="text-primary">clearer decisions.</span></h1>
+            <p className="mt-6 max-w-xl font-body-lg text-base leading-7 text-secondary sm:text-lg">VERTEX was built to help analysts quickly understand thermal anomalies across India—where they are, what they may represent, and which ones deserve attention now.</p>
+            <div className="mt-9 flex flex-wrap gap-3">
+              {user?.role === 'admin' && (
+                <Link
+                  href="/admin"
+                  className="inline-flex items-center gap-2 border-2 border-primary bg-primary/20 px-5 py-3 font-mono text-[11px] font-bold tracking-[0.12em] text-primary transition-colors hover:bg-primary hover:text-on-primary shadow-lg shadow-primary/25"
                 >
-                  warning
-                </span>
+                  <span className="material-symbols-outlined text-[18px]">admin_panel_settings</span>
+                  MANAGE USERS (ADMIN)
+                </Link>
+              )}
+              <Link href="/analytics" className="inline-flex items-center gap-2 bg-primary px-5 py-3 font-mono text-[11px] font-bold tracking-[0.12em] text-on-primary transition-colors hover:bg-primary-container hover:text-on-primary-container">EXPLORE ANALYTICS<span className="material-symbols-outlined text-[18px]">arrow_forward</span></Link>
+              <Link href="/map" className="inline-flex items-center gap-2 border border-outline-variant bg-surface/80 px-5 py-3 font-mono text-[11px] font-bold tracking-[0.12em] text-on-surface transition-colors hover:border-primary hover:text-primary">OPEN LIVE MAP<span className="material-symbols-outlined text-[18px]">map</span></Link>
+            </div>
 
-                <div
-                  className="
-                    font-headline-sm
-                    uppercase
-                    tracking-widest
-                    mb-2
-                  "
+            {user ? (
+              <p className="mt-5 font-body-sm text-secondary flex flex-wrap items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-[18px]">{user.role === 'admin' ? 'verified_user' : 'account_circle'}</span>
+                <span>Signed in as <strong className="text-on-surface">@{user.username}</strong>{user.role === 'admin' ? ' (Administrator)' : ''}</span>
+                {user.role === 'admin' && (
+                  <>
+                    <span className="text-outline-variant">·</span>
+                    <Link href="/admin" className="font-medium text-primary hover:underline">User Management Console</Link>
+                  </>
+                )}
+              </p>
+            ) : (
+              <p className="mt-5 font-body-sm text-secondary flex flex-wrap items-center gap-1.5">
+                <span>New to VERTEX?</span>
+                <Link href="/signup" className="font-medium text-primary hover:underline">Create an account</Link>
+                <span className="text-outline-variant">·</span>
+                <Link href="/login" className="font-medium text-primary hover:underline">Sign in</Link>
+                <span className="text-outline-variant">·</span>
+                <Link
+                  href="/login?mode=admin"
+                  className="font-mono text-xs font-bold text-primary hover:underline inline-flex items-center gap-1 bg-primary/10 px-2 py-0.5 border border-primary/40 ml-1"
                 >
-                  SYSTEM ERROR
+                  <span className="material-symbols-outlined text-[14px]">shield_person</span>
+                  Admin Login
+                </Link>
+              </p>
+            )}
+          </div>
+
+          <div className="relative mx-auto w-full max-w-[510px] border border-outline-variant bg-surface/90 p-4 shadow-2xl backdrop-blur-sm">
+            <div className="mb-4 flex items-center justify-between border-b border-outline-variant pb-3"><div className="flex items-center gap-2 font-mono text-[10px] font-bold tracking-[0.14em] text-secondary"><span className="material-symbols-outlined text-primary text-[18px]">radar</span>EVENT OVERVIEW</div><span className="font-mono text-[9px] tracking-widest text-primary">LIVE FEED</span></div>
+            <div className="relative h-[270px] overflow-hidden border border-outline-variant bg-[#17120f]">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(161,64,0,.35),transparent_53%)]" /><div className="absolute inset-0 opacity-40 bg-[linear-gradient(to_right,#f0c89f1a_1px,transparent_1px),linear-gradient(to_bottom,#f0c89f1a_1px,transparent_1px)] bg-[size:34px_34px]" />
+              <div className="absolute left-[17%] top-[25%] h-28 w-28 rounded-full border border-primary/50" /><div className="absolute left-[25%] top-[33%] h-12 w-12 rounded-full border border-primary/70" /><div className="absolute left-[31%] top-[39%] h-2.5 w-2.5 rounded-full bg-primary shadow-[0_0_22px_7px_rgba(234,88,12,.45)]" />
+              <div className="absolute right-[20%] top-[22%] h-2 w-2 rounded-full bg-orange-300 shadow-[0_0_15px_5px_rgba(251,146,60,.38)]" /><div className="absolute bottom-[21%] right-[31%] h-2.5 w-2.5 rounded-full bg-primary shadow-[0_0_18px_6px_rgba(234,88,12,.4)]" /><div className="absolute left-[13%] bottom-[17%] h-1.5 w-1.5 rounded-full bg-amber-200" />
+              <div className="absolute bottom-3 left-3 border-l-2 border-primary pl-2 font-mono text-[9px] tracking-widest text-on-surface">THERMAL CLUSTER / 28.6139° N</div>
+            </div>
+            <div className="mt-4 grid grid-cols-3 divide-x divide-outline-variant border border-outline-variant"><div className="p-3"><div className="font-mono text-[9px] tracking-widest text-secondary">OBSERVED</div><div className="mt-1 font-mono text-xl text-on-surface">24/7</div></div><div className="p-3"><div className="font-mono text-[9px] tracking-widest text-secondary">CONTEXT</div><div className="mt-1 font-mono text-xl text-primary">AI</div></div><div className="p-3"><div className="font-mono text-[9px] tracking-widest text-secondary">PRIORITY</div><div className="mt-1 font-mono text-xl text-on-surface">LIVE</div></div></div>
+          </div>
+        </div>
+      </section>
+
+      {user?.role === 'admin' && (
+        <section className="border-b border-primary/40 bg-primary/10 px-6 py-4 lg:px-10">
+          <div className="mx-auto flex max-w-7xl flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-primary bg-surface text-primary">
+                <span className="material-symbols-outlined text-[24px]">admin_panel_settings</span>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[10px] font-bold tracking-[0.2em] text-primary">ADMINISTRATOR CONTROL PRIVILEGES</span>
+                  <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                 </div>
-
-                <div
-                  className="
-                    font-mono
-                    text-xs
-                  "
-                >
-                  {error}
-                </div>
+                <p className="text-sm font-medium text-on-surface">You are signed in with the Admin role. You have permissions to see all users and delete them.</p>
               </div>
             </div>
-          ) : (
-            /* =============================================
-               MAP
-               ============================================= */
-
-            <div
-              className="
-                w-full
-                h-full
-              "
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-2 bg-primary px-4 py-2.5 font-mono text-[11px] font-bold tracking-[0.12em] text-on-primary transition-colors hover:bg-primary-container hover:text-on-primary-container shrink-0"
             >
-              <MapView
-                /*
-                 * Single authoritative map dataset.
-                 *
-                 * It has already been merged with the latest
-                 * classification/context data and passed through
-                 * every active filter.
-                 */
-                hotspots={filteredMapHotspots}
-                selectedHotspot={
-                  persistedSelectedHotspot
-                }
-                onSelectHotspot={
-                  handleSelectHotspot
-                }
-                center={INDIA_CENTER}
-                zoom={INDIA_ZOOM}
-              />
-            </div>
-          )}
-        </main>
+              <span className="material-symbols-outlined text-[16px]">group</span>
+              VIEW ALL USERS &amp; DELETE
+            </Link>
+          </div>
+        </section>
+      )}
 
-        {/* =================================================
-            RIGHT PANEL
-            ================================================= */}
+      <section className="mx-auto max-w-7xl px-6 py-16 lg:px-10">
+        <div className="max-w-2xl"><p className="font-mono text-[10px] font-bold tracking-[0.2em] text-primary">WHY WE BUILT VERTEX</p><h2 className="mt-3 font-headline-sm text-3xl tracking-tight text-on-surface sm:text-4xl">More signal. Less uncertainty.</h2><p className="mt-4 font-body-md leading-7 text-secondary">Raw thermal detections alone do not explain whether an event is an industrial process, gas flare, wildfire, or something else. VERTEX brings the evidence together so teams can focus their time where it matters.</p></div>
+        <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-3">{capabilities.map((capability) => <article key={capability.number} className="group border border-outline-variant bg-surface p-5 transition-colors hover:border-primary"><div className="flex items-start justify-between"><span className="material-symbols-outlined text-primary text-[28px]">{capability.icon}</span><span className="font-mono text-[11px] text-secondary">{capability.number}</span></div><h3 className="mt-10 font-headline-sm text-xl text-on-surface">{capability.title}</h3><p className="mt-2 font-body-sm leading-6 text-secondary">{capability.description}</p></article>)}</div>
+      </section>
 
-        <RightPanel
-          hotspot={persistedSelectedHotspot}
-        />
-      </div>
-
-      {/* ===================================================
-          BOTTOM TICKER
-          =================================================== */}
-
-      <BottomTicker
-        hotspots={hotspots}
-      />
-    </>
+      <section className="border-y border-outline-variant bg-surface"><div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 px-6 py-10 sm:flex-row sm:items-center lg:px-10"><div><p className="font-mono text-[10px] font-bold tracking-[0.2em] text-primary">READY TO INVESTIGATE</p><h2 className="mt-2 font-headline-sm text-2xl text-on-surface">See the current thermal picture.</h2></div><div className="flex flex-wrap gap-3">{user?.role === 'admin' && <Link href="/admin" className="inline-flex shrink-0 items-center gap-2 border border-primary px-5 py-3 font-mono text-[11px] font-bold tracking-[0.12em] text-primary transition-colors hover:bg-primary hover:text-on-primary">MANAGE USERS<span className="material-symbols-outlined text-[18px]">admin_panel_settings</span></Link>}<Link href="/map" className="inline-flex shrink-0 items-center gap-2 border border-outline-variant px-5 py-3 font-mono text-[11px] font-bold tracking-[0.12em] text-on-surface transition-colors hover:border-primary hover:text-primary">OPEN LIVE MAP<span className="material-symbols-outlined text-[18px]">map</span></Link><Link href="/analytics" className="inline-flex shrink-0 items-center gap-2 border border-primary bg-primary px-5 py-3 font-mono text-[11px] font-bold tracking-[0.12em] text-on-primary transition-colors hover:bg-primary-container hover:text-on-primary-container">OPEN ANALYTICS<span className="material-symbols-outlined text-[18px]">monitoring</span></Link></div></div></section>
+      <footer className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-6 font-mono text-[9px] tracking-[0.14em] text-secondary sm:flex-row sm:items-center sm:justify-between lg:px-10"><span>VERTEX / THERMAL INTELLIGENCE PLATFORM</span><div className="flex gap-5"><Link href="/login" className="hover:text-primary">SIGN IN</Link><Link href="/signup" className="hover:text-primary">CREATE ACCOUNT</Link></div></footer>
+    </main>
   );
 }

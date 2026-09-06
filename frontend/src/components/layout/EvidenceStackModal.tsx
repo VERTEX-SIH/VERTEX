@@ -226,7 +226,9 @@ export function EvidenceStackModal({
                       TYPE
                     </div>
                     <div className="font-mono-data-sm text-[11px] text-on-surface mt-1">
-                      SWIR Thermal Fire & Heat
+                      {effectiveSatelliteEvidence.source?.includes('SWIR')
+                        ? 'SWIR Thermal Fire & Heat'
+                        : 'High-Resolution Optical Satellite'}
                     </div>
                   </div>
                   <div className="bg-surface p-2">
@@ -239,7 +241,9 @@ export function EvidenceStackModal({
                   </div>
                 </div>
                 <div className="font-body-sm text-[10px] text-secondary mt-2">
-                  High-radiance SWIR-2 combustion and thermal heat signature overlay shown at detection core ({firms.latitude.toFixed(4)}°, {firms.longitude.toFixed(4)}°).
+                  {effectiveSatelliteEvidence.source?.includes('SWIR')
+                    ? `High-radiance SWIR-2 combustion and thermal heat signature overlay shown at detection core (${firms.latitude.toFixed(4)}°, ${firms.longitude.toFixed(4)}°).`
+                    : `High-resolution optical satellite context scene around detection core (${firms.latitude.toFixed(4)}°, ${firms.longitude.toFixed(4)}°) with thermal telemetry overlay.`}
                 </div>
               </div>
             )}

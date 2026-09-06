@@ -247,10 +247,6 @@ export function RightPanel({ hotspot }: RightPanelProps) {
   const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-  /*
-   * Supabase/backend context is the source of truth.
-   * Keep only the currently displayed context in React state.
-   */
   useEffect(() => {
     setDisplayContext(
       normalizeContext(hotspot?.context ?? EMPTY_CONTEXT)
@@ -291,7 +287,8 @@ export function RightPanel({ hotspot }: RightPanelProps) {
           }
         }
       } catch (error: any) {
-        logger.warning('Satellite evidence fetch warning:', error);
+        if (error?.name === 'AbortError' || String(error?.message || '').includes('aborted')) return;
+        console.warn('Satellite evidence fetch warning:', error);
       } finally {
         if (!cancelled) setSatelliteLoading(false);
       }
@@ -301,18 +298,6 @@ export function RightPanel({ hotspot }: RightPanelProps) {
     return () => { cancelled = true; };
   }, [hotspot?.id]);
 
-  /*
-   * Refresh ONLY OSM/context.
-   *
-   * No page reload.
-   *
-   * After getting the backend result:
-   *
-   * - update React state
-   * - save it to localStorage
-   *
-   * So navigating away and returning will not lose it.
-   */
   const refreshContext = async () => {
     if (!hotspot) return;
 
@@ -327,15 +312,6 @@ export function RightPanel({ hotspot }: RightPanelProps) {
         String(hotspot.id)
       );
 
-      /*
-       * Backend currently returns the context directly.
-       *
-       * This also supports:
-       *
-       * {
-       *   osm_context: {...}
-       * }
-       */
       const refreshedContext =
         (result as any)?.osm_context ??
         (result as any);
@@ -349,12 +325,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
           refreshedContext
         );
 
-        /*
-         * Update UI immediately.
-         */
         setDisplayContext(normalized);
-
-      
       } else {
         throw new Error(
           'Invalid context returned by backend'
@@ -374,9 +345,6 @@ export function RightPanel({ hotspot }: RightPanelProps) {
     }
   };
 
-  /*
-   * No hotspot selected.
-   */
   if (!hotspot) {
     return (
       <aside className="bg-surface-container-low w-[340px] h-full flex flex-col border-l border-outline-variant fixed right-0 top-[40px] bottom-[32px] z-40">
@@ -505,14 +473,9 @@ export function RightPanel({ hotspot }: RightPanelProps) {
 
         {activeTab === 'DOSSIER' && (
           <>
-            {/* =========================================================
-                UNCLASSIFIED / PENDING
-            ========================================================= */}
-
             {classification.classification ===
             ClassificationType.UNCLASSIFIED ? (
               <>
-                {/* PENDING */}
                 <div className="border border-outline-variant p-3 bg-surface-container-high">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="material-symbols-outlined text-secondary">
@@ -531,7 +494,6 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                   </div>
                 </div>
 
-                {/* THERMAL SIGNATURE */}
                 <div>
                   <div className="font-headline-sm text-[12px] text-on-surface mb-2 border-b border-outline-variant pb-1">
                     THERMAL SIGNATURE
@@ -596,7 +558,6 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                   </div>
                 </div>
 
-                {/* GEOSPATIAL */}
                 <div>
                   <div className="font-headline-sm text-[12px] text-on-surface mb-2 border-b border-outline-variant pb-1">
                     GEOSPATIAL
@@ -613,7 +574,6 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                   </div>
                 </div>
 
-                {/* INDUSTRIAL CONTEXT */}
                 <div>
                   <div className="flex justify-between items-end mb-2 border-b border-outline-variant pb-1">
 
@@ -698,12 +658,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
               </>
             ) : (
 
-              /* =========================================================
-                 CLASSIFIED
-              ========================================================= */
-
               <>
-                {/* PREDICTED CLASS */}
                 <div className="border border-outline-variant p-2 relative bg-surface">
                   <div
                     className="absolute top-0 left-0 w-1 h-full"
@@ -726,7 +681,6 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                   </div>
                 </div>
 
-                {/* THERMAL SIGNATURE */}
                 <div>
                   <div>
                     <div className="font-headline-sm text-[12px] text-on-surface mb-2 border-b border-outline-variant pb-1">
@@ -794,7 +748,6 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                     </div>
                   </div>
 
-                  {/* GEOSPATIAL */}
                   <div className="mt-4">
                     <div className="font-headline-sm text-[12px] text-on-surface mb-2 border-b border-outline-variant pb-1">
                       GEOSPATIAL
@@ -815,7 +768,6 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                     </div>
                   </div>
 
-                  {/* INDUSTRIAL CONTEXT */}
                   <div className="mt-4">
                     <div className="flex justify-between items-end mb-2 border-b border-outline-variant pb-1">
 
@@ -866,7 +818,6 @@ export function RightPanel({ hotspot }: RightPanelProps) {
 
                     <div className="bg-surface border border-outline-variant p-2 font-body-sm text-[12px] space-y-3">
 
-                      {/* FACILITY */}
                       {context.nearby_facilities?.length >
                       0 ? (
                         <div>
@@ -911,7 +862,6 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                         </div>
                       )}
 
-                      {/* SOURCE */}
                       {context.osm_source && (
                         <div className="pt-2 border-t border-outline-variant">
 
@@ -995,11 +945,17 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                           </div>
                           <div>
                             TYPE
-                            <div className="text-on-surface mt-0.5">SWIR Thermal Fire & Heat</div>
+                            <div className="text-on-surface mt-0.5">
+                              {effectiveSatelliteEvidence.source?.includes('SWIR')
+                                ? 'SWIR Thermal Fire & Heat'
+                                : 'High-Resolution Optical Satellite'}
+                            </div>
                           </div>
                         </div>
                         <div className="text-[9px] text-secondary leading-relaxed">
-                          Recent contextual satellite scene. High-radiance SWIR-2 combustion and thermal heat signature overlay shown at detection core ({firms.latitude.toFixed(4)}°, {firms.longitude.toFixed(4)}°).
+                          {effectiveSatelliteEvidence.source?.includes('SWIR')
+                            ? `Recent contextual satellite scene. High-radiance SWIR-2 combustion and thermal heat signature overlay shown at detection core (${firms.latitude.toFixed(4)}°, ${firms.longitude.toFixed(4)}°).`
+                            : `High-resolution optical satellite context scene around detection core (${firms.latitude.toFixed(4)}°, ${firms.longitude.toFixed(4)}°) with thermal telemetry overlay.`}
                         </div>
                       </>
                     ) : (
@@ -1236,6 +1192,13 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                 src={effectiveSatelliteEvidence.image_data_url}
                 alt="Expanded satellite context"
                 className="max-w-full max-h-[78vh] object-contain"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  const fallbackUrl = getEsriSatelliteTileUrl(firms.latitude, firms.longitude, 15);
+                  if (target.src !== fallbackUrl) {
+                    target.src = fallbackUrl;
+                  }
+                }}
               />
             </div>
           </div>

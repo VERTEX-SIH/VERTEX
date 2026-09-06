@@ -287,6 +287,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
           }
         }
       } catch (error: any) {
+        if (error?.name === 'AbortError' || String(error?.message || '').includes('aborted')) return;
         console.warn('Satellite evidence fetch warning:', error);
       } finally {
         if (!cancelled) setSatelliteLoading(false);
@@ -944,11 +945,17 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                           </div>
                           <div>
                             TYPE
-                            <div className="text-on-surface mt-0.5">SWIR Thermal Fire & Heat</div>
+                            <div className="text-on-surface mt-0.5">
+                              {effectiveSatelliteEvidence.source?.includes('SWIR')
+                                ? 'SWIR Thermal Fire & Heat'
+                                : 'High-Resolution Optical Satellite'}
+                            </div>
                           </div>
                         </div>
                         <div className="text-[9px] text-secondary leading-relaxed">
-                          Recent contextual satellite scene. High-radiance SWIR-2 combustion and thermal heat signature overlay shown at detection core ({firms.latitude.toFixed(4)}°, {firms.longitude.toFixed(4)}°).
+                          {effectiveSatelliteEvidence.source?.includes('SWIR')
+                            ? `Recent contextual satellite scene. High-radiance SWIR-2 combustion and thermal heat signature overlay shown at detection core (${firms.latitude.toFixed(4)}°, ${firms.longitude.toFixed(4)}°).`
+                            : `High-resolution optical satellite context scene around detection core (${firms.latitude.toFixed(4)}°, ${firms.longitude.toFixed(4)}°) with thermal telemetry overlay.`}
                         </div>
                       </>
                     ) : (

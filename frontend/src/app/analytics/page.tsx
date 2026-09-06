@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useMemo } from 'react';
 import { useGlobalState } from '@/lib/GlobalStateContext';
+import { useVertexUser } from '@/lib/auth-session';
+import { AuthRequiredDialog } from '@/components/auth/AuthRequiredDialog';
 import {
   CLASSIFICATION_COLORS,
   CLASSIFICATION_LABELS,
@@ -23,7 +25,7 @@ import {
   Legend,
 } from 'recharts';
 
-export default function AnalyticsPage() {
+function AnalyticsWorkspace() {
   const router = useRouter();
   const {
     analyticsSummary: summary,
@@ -825,4 +827,14 @@ export default function AnalyticsPage() {
       </div>
     </div>
   );
+}
+
+export default function AnalyticsPage() {
+  const { user, ready } = useVertexUser();
+
+  if (!ready) {
+    return <div className="flex-1 bg-surface-dim" />;
+  }
+
+  return user ? <AnalyticsWorkspace /> : <AuthRequiredDialog />;
 }

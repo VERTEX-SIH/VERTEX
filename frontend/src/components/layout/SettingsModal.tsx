@@ -42,9 +42,10 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                   onChange={(e) => setLocalMapStyle(e.target.value)}
                   className="bg-surface border border-outline-variant text-[11px] font-mono px-2 py-1 outline-none focus:border-primary"
                 >
+                  <option>Esri World Imagery (Satellite)</option>
+                  <option>Dark Canvas</option>
+                  <option>Dark Tactical</option>
                   <option>OSM Light</option>
-                  <option>Carto Dark Matter</option>
-                  <option>Esri Dark Canvas</option>
                 </select>
               </div>
               <div className="flex items-center justify-between bg-surface-container p-3 border border-outline-variant">
