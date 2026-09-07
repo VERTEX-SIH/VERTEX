@@ -5,7 +5,16 @@ import { Map, Source, Layer, MapRef, Popup, NavigationControl, ViewStateChangeEv
 import 'maplibre-gl/dist/maplibre-gl.css';
 import maplibregl from 'maplibre-gl';
 import { ClassifiedHotspot, CLASSIFICATION_COLORS, ClassificationType } from '@/types';
-import { DEFAULT_CENTER, DEFAULT_ZOOM } from '@/lib/constants';
+import {
+  DEFAULT_CENTER,
+  DEFAULT_ZOOM,
+  INDIA_CENTER,
+  INDIA_ZOOM,
+  INDIA_MIN_ZOOM,
+  INDIA_MAX_ZOOM,
+  INDIA_MAX_BOUNDS,
+  isWithinIndia,
+} from '@/lib/constants';
 import { useGlobalState } from '@/lib/GlobalStateContext';
 import { FirePopup } from './FirePopup';
 
@@ -21,11 +30,20 @@ export function MapView({
   hotspots,
   selectedHotspot,
   onSelectHotspot,
-  center = DEFAULT_CENTER,
-  zoom = DEFAULT_ZOOM,
+  center = INDIA_CENTER,
+  zoom = INDIA_ZOOM,
 }: MapViewProps) {
   const { mapStyle, mapCenter: savedCenter, mapZoom: savedZoom, setMapCenter, setMapZoom } = useGlobalState();
-  const visibleHotspots = hotspots;
+  
+  // Strictly filter visible hotspots to India's bounding territory
+  const visibleHotspots = useMemo(() => {
+    return hotspots.filter((hotspot) => {
+      const lon = Number(hotspot?.hotspot?.longitude);
+      const lat = Number(hotspot?.hotspot?.latitude);
+      return isWithinIndia(lat, lon);
+    });
+  }, [hotspots]);
+
   const [mounted, setMounted] = useState(false);
   const mapRef = useRef<MapRef>(null);
   const hasAutoFitted = useRef(false);
@@ -111,10 +129,10 @@ export function MapView({
     const longitudeSpan = dataBounds.maxLon - dataBounds.minLon;
     const latitudeSpan = dataBounds.maxLat - dataBounds.minLat;
     const padding = 0.15;
-    const minLon = dataBounds.minLon - Math.max(longitudeSpan * padding, 1.0);
-    const maxLon = dataBounds.maxLon + Math.max(longitudeSpan * padding, 1.0);
-    const minLat = dataBounds.minLat - Math.max(latitudeSpan * padding, 0.8);
-    const maxLat = dataBounds.maxLat + Math.max(latitudeSpan * padding, 0.8);
+    const minLon = Math.max(68.0, dataBounds.minLon - Math.max(longitudeSpan * padding, 1.0));
+    const maxLon = Math.min(97.5, dataBounds.maxLon + Math.max(longitudeSpan * padding, 1.0));
+    const minLat = Math.max(6.0, dataBounds.minLat - Math.max(latitudeSpan * padding, 0.8));
+    const maxLat = Math.min(37.5, dataBounds.maxLat + Math.max(latitudeSpan * padding, 0.8));
     hasAutoFitted.current = true;
     mapRef.current.fitBounds([[minLon, minLat], [maxLon, maxLat]], { padding: 80, duration: 700, maxZoom: 8.5 });
   }, [mounted, dataBounds]);
@@ -245,6 +263,8 @@ export function MapView({
         {...viewState}
         onMove={onMove}
         onMoveEnd={onMoveEnd}
+        minZoom={1}
+        maxZoom={INDIA_MAX_ZOOM}
         onError={(e) => {
           if (
             e?.error?.name === 'AbortError' ||
@@ -262,6 +282,21 @@ export function MapView({
         style={{ width: '100%', height: '100%' }}
       >
         <NavigationControl position="top-right" showCompass showZoom />
+
+        {/* Official Sovereign Boundary Outline for India */}
+        <Source id="india-boundary" type="geojson" data="/india_boundary.geojson">
+          <Layer
+            id="india-boundary-line"
+            type="line"
+            paint={{
+              'line-color': '#0284c7',
+              'line-width': 1.6,
+              'line-opacity': 0.5,
+              'line-dasharray': [3, 2],
+            }}
+          />
+        </Source>
+
         <Source id="hotspots" type="geojson" data={geojsonData}>
           <Layer
             id="unclustered-point"

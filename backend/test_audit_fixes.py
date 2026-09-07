@@ -27,3 +27,26 @@ def test_india_boundary_point():
     assert _point_in_india(19.4000, 71.3000)  # Bombay High (Offshore energy)
     assert not _point_in_india(31.5204, 74.3587)  # Lahore (Pakistan)
     assert not _point_in_india(23.8103, 90.4125)  # Dhaka (Bangladesh)
+
+
+def test_find_nearby_facilities_unique_distances_under_800m():
+    from services.facility_service import find_nearby_facilities
+    test_points = [
+        (15.16888, 76.67051),
+        (19.07600, 72.87700),
+        (13.08200, 80.27000),
+        (28.61300, 77.20900),
+        (20.59300, 78.96200),
+        (34.08300, 74.79700),
+    ]
+    distances = []
+    for lat, lon in test_points:
+        nearby = find_nearby_facilities(lat, lon, radius_m=800)
+        assert len(nearby) > 0
+        d = nearby[0]["distance_m"]
+        assert d < 800.0, f"Distance {d} exceeds 800m"
+        assert d != 950.0, "Distance should not be hardcoded 950.0"
+        distances.append(d)
+
+    # Ensure distances across different locations are distinct
+    assert len(set(distances)) == len(distances), "Distances across locations should be unique"

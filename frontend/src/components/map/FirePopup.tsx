@@ -146,14 +146,14 @@ export function FirePopup({
                 {ctx.nearby_facilities
                   .slice(0, 3)
                   .map((fac, i) => {
-                    const distance = Math.min(
-                      Number(
-                        (fac as any).distance_m ??
-                          (fac as any).distance_meters ??
-                          0
-                      ),
-                      1000
+                    const distVal = Number(
+                      (fac as any).distance_m ??
+                        (fac as any).distance_meters ??
+                        0
                     );
+                    const formattedDist = distVal >= 1000
+                      ? `${(distVal / 1000).toFixed(1)}km`
+                      : `${Math.round(distVal)}m`;
 
                     return (
                       <div
@@ -166,7 +166,7 @@ export function FirePopup({
                         </span>
 
                         <span className="text-secondary">
-                          {distance.toFixed(0)}m
+                          {formattedDist}
                         </span>
                       </div>
                     );

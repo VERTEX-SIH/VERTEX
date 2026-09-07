@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request
 from routers.hotspots import latest_results
 from limiter import limiter
+from services.firms_service import _point_in_india
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -15,7 +16,7 @@ async def get_analytics_summary(request: Request):
         start = 0
         while True:
             res = supabase_service.table("hotspots").select(
-                "id, frp, classifications(classification, risk_level, created_at)"
+                "id, latitude, longitude, frp, classifications(classification, risk_level, created_at)"
             ).range(start, start + page_size - 1).execute()
             if not res.data:
                 break
@@ -26,6 +27,8 @@ async def get_analytics_summary(request: Request):
             
         if not all_data:
             return {
+                "region": "IND",
+                "jurisdiction": "India Only",
                 "total_hotspots": 0,
                 "total_firms_observations": 0,
                 "ai_classified": 0,
@@ -40,8 +43,16 @@ async def get_analytics_summary(request: Request):
         frps = []
         ai_classified = 0
         ai_pending = 0
+        total_india = 0
         
         for r in all_data:
+            lat = r.get("latitude")
+            lon = r.get("longitude")
+            if lat is not None and lon is not None:
+                if not _point_in_india(lat, lon):
+                    continue
+            
+            total_india += 1
             frp = r.get("frp")
             if frp is not None:
                 frps.append(float(frp))
@@ -65,11 +76,11 @@ async def get_analytics_summary(request: Request):
             if not has_valid_classification:
                 ai_pending += 1
         
-        total = len(all_data)
-        
         return {
-            "total_hotspots": total,
-            "total_firms_observations": total,
+            "region": "IND",
+            "jurisdiction": "India Only",
+            "total_hotspots": total_india,
+            "total_firms_observations": total_india,
             "ai_classified": ai_classified,
             "ai_pending": ai_pending,
             "classification_counts": counts,
