@@ -27,6 +27,8 @@ import {
 import {
   INDIA_CENTER,
   INDIA_ZOOM,
+  INDIA_MIN_ZOOM,
+  isWithinIndia,
 } from './constants';
 
 const API_BASE_URL =
@@ -603,7 +605,8 @@ export function GlobalStateProvider({
           typeof parsed[0] ===
             'number' &&
           typeof parsed[1] ===
-            'number'
+            'number' &&
+          isWithinIndia(parsed[1], parsed[0])
         ) {
 
           setMapCenterState(
@@ -612,6 +615,8 @@ export function GlobalStateProvider({
               number
             ]
           );
+        } else {
+          setMapCenterState(INDIA_CENTER);
         }
 
       } catch {
@@ -639,7 +644,7 @@ export function GlobalStateProvider({
       ) {
 
         setMapZoomState(
-          parsedZoom
+          Math.max(parsedZoom, INDIA_MIN_ZOOM)
         );
       }
     }
@@ -873,7 +878,11 @@ export function GlobalStateProvider({
             hotspot:
               ClassifiedHotspot | null
           ): hotspot is ClassifiedHotspot =>
-            hotspot !== null
+            hotspot !== null &&
+            isWithinIndia(
+              hotspot.hotspot.latitude,
+              hotspot.hotspot.longitude
+            )
         );
       } catch (err: any) {
         if (
@@ -928,6 +937,12 @@ export function GlobalStateProvider({
 
         ]);
 
+        const indiaClassified = (initialClassifiedData || []).filter((h) =>
+          isWithinIndia(h.hotspot?.latitude, h.hotspot?.longitude)
+        );
+        const indiaMap = (currentMapData || []).filter((h) =>
+          isWithinIndia(h.hotspot?.latitude, h.hotspot?.longitude)
+        );
 
         /*
          * ---------------------------------------------------
@@ -937,8 +952,8 @@ export function GlobalStateProvider({
 
         const mergedInitialMapData =
           mergeClassifiedIntoMap(
-            currentMapData,
-            initialClassifiedData
+            indiaMap,
+            indiaClassified
           );
 
 
@@ -949,7 +964,7 @@ export function GlobalStateProvider({
          */
 
         setHotspots(
-          initialClassifiedData
+          indiaClassified
         );
 
 
@@ -1060,9 +1075,12 @@ export function GlobalStateProvider({
                   1
                 );
 
+              const indiaEnriched = (enrichedData || []).filter((h) =>
+                isWithinIndia(h.hotspot?.latitude, h.hotspot?.longitude)
+              );
 
               setHotspots(
-                enrichedData
+                indiaEnriched
               );
 
 
@@ -1074,11 +1092,14 @@ export function GlobalStateProvider({
               const freshMapData =
                 await fetchAllCurrentMapHotspots();
 
+              const indiaFreshMap = (freshMapData || []).filter((h) =>
+                isWithinIndia(h.hotspot?.latitude, h.hotspot?.longitude)
+              );
 
               const mergedEnrichedMapData =
                 mergeClassifiedIntoMap(
-                  freshMapData,
-                  enrichedData
+                  indiaFreshMap,
+                  indiaEnriched
                 );
 
 

@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import { useGlobalState } from '@/lib/GlobalStateContext';
 import { useVertexUser } from '@/lib/auth-session';
 import { AuthRequiredDialog } from '@/components/auth/AuthRequiredDialog';
+import { isWithinIndia } from '@/lib/constants';
 import {
   CLASSIFICATION_COLORS,
   CLASSIFICATION_LABELS,
@@ -37,22 +38,29 @@ function AnalyticsWorkspace() {
 
   /*
    * =========================================================
-   * LIVE ANALYTICS
+   * LIVE ANALYTICS (INDIA NATIONAL SCOPE ONLY)
    * =========================================================
    *
-   * Current FIRMS observations are the authoritative population.
-   * The stored classified stream is merged onto those observations
-   * by FIRMS identity. Backend summary values are not used for the
-   * headline numbers/charts because they can lag the live feed.
+   * Current FIRMS observations strictly bounded to India's territory
+   * are the authoritative population. Foreign anomalies outside India
+   * are excluded from all totals, distributions, and facility lookups.
    */
 
-  const classifiedHotspots = Array.isArray(hotspots)
-    ? hotspots
-    : [];
+  const classifiedHotspots = useMemo(() => {
+    const list = Array.isArray(hotspots) ? hotspots : [];
+    return list.filter((h: any) => {
+      const source = h?.hotspot ?? h;
+      return isWithinIndia(source?.latitude, source?.longitude);
+    });
+  }, [hotspots]);
 
-  const firmsObservations = Array.isArray(mapHotspots)
-    ? mapHotspots
-    : [];
+  const firmsObservations = useMemo(() => {
+    const list = Array.isArray(mapHotspots) ? mapHotspots : [];
+    return list.filter((h: any) => {
+      const source = h?.hotspot ?? h;
+      return isWithinIndia(source?.latitude, source?.longitude);
+    });
+  }, [mapHotspots]);
 
   const hotspotIdentity = (hotspot: any) => {
     const source = hotspot?.hotspot ?? hotspot;
@@ -444,13 +452,23 @@ function AnalyticsWorkspace() {
         </div>
 
         <div className="border-b border-outline-variant pb-4 mb-6">
-          <h1 className="font-headline-sm text-2xl text-primary uppercase tracking-widest">
-            ANALYTICS
-          </h1>
-
-          <p className="font-body-sm text-secondary uppercase tracking-widest mt-1 text-xs">
-            CURRENT FIRMS THERMAL EVENT ANALYSIS
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h1 className="font-headline-sm text-2xl text-primary uppercase tracking-widest">
+                ANALYTICS
+              </h1>
+              <p className="font-body-sm text-secondary uppercase tracking-widest mt-1 text-xs">
+                CURRENT FIRMS THERMAL EVENT ANALYSIS (INDIA ONLY)
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 border border-primary/50 bg-surface/90 px-3 py-1.5 font-mono text-[10px] tracking-wider text-primary shadow-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+              </span>
+              <span>TERRITORY: INDIA NATIONAL SCOPE (68.0°E – 97.5°E, 6.0°N – 37.5°N)</span>
+            </div>
+          </div>
         </div>
 
         {/* =================================================
@@ -461,7 +479,7 @@ function AnalyticsWorkspace() {
 
           <div className="bg-surface border border-outline-variant p-4">
             <div className="font-mono-label text-[10px] text-secondary tracking-widest uppercase mb-2">
-              TOTAL FIRMS OBSERVATIONS
+              TOTAL FIRMS (INDIA)
             </div>
 
             <div className="font-mono-data-md text-3xl text-on-surface">
@@ -471,7 +489,7 @@ function AnalyticsWorkspace() {
 
           <div className="bg-surface border border-outline-variant p-4">
             <div className="font-mono-label text-[10px] text-secondary tracking-widest uppercase mb-2">
-              AI CLASSIFIED
+              AI CLASSIFIED (INDIA)
             </div>
 
             <div className="font-mono-data-md text-3xl text-primary">
@@ -481,7 +499,7 @@ function AnalyticsWorkspace() {
 
           <div className="bg-surface border border-outline-variant p-4">
             <div className="font-mono-label text-[10px] text-secondary tracking-widest uppercase mb-2">
-              AI PENDING
+              AI PENDING (INDIA)
             </div>
 
             <div className="font-mono-data-md text-3xl text-error">
@@ -491,7 +509,7 @@ function AnalyticsWorkspace() {
 
           <div className="bg-surface border border-outline-variant p-4">
             <div className="font-mono-label text-[10px] text-secondary tracking-widest uppercase mb-2">
-              AVERAGE FRP (MW)
+              AVERAGE FRP (INDIA, MW)
             </div>
 
             <div className="font-mono-data-md text-3xl text-on-surface">
@@ -509,7 +527,7 @@ function AnalyticsWorkspace() {
 
           <div className="bg-surface border border-outline-variant p-4">
             <div className="font-mono-label text-[10px] text-secondary tracking-widest uppercase mb-2">
-              INDUSTRIAL / PERSISTENT EVENTS
+              INDUSTRIAL / PERSISTENT (INDIA)
             </div>
 
             <div className="font-mono-data-md text-2xl text-primary">
@@ -519,7 +537,7 @@ function AnalyticsWorkspace() {
 
           <div className="bg-surface border border-outline-variant p-4">
             <div className="font-mono-label text-[10px] text-secondary tracking-widest uppercase mb-2">
-              HIGH / CRITICAL RISK
+              HIGH / CRITICAL RISK (INDIA)
             </div>
 
             <div className="font-mono-data-md text-2xl text-error">

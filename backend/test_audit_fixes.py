@@ -17,3 +17,20 @@ def test_osm_zero_facility_context_valid():
 
 def test_india_boundary_point():
     assert _point_in_india(20.5937, 78.9629)
+
+
+def test_find_nearby_facilities_no_clamp_and_no_false_fallback():
+    from services.facility_service import find_nearby_facilities
+    # UltraTech Rajashree Cement is at lat 17.15, lon 77.10
+    # A point 300m away
+    lat_near = 17.15 + (300 / 111000)
+    lon_near = 77.10
+    nearby = find_nearby_facilities(lat_near, lon_near, radius_m=1000)
+    assert len(nearby) > 0
+    assert nearby[0]["distance_m"] < 900
+    assert nearby[0]["distance_m"] != 950.0
+
+    # A remote point in the middle of the Indian Ocean or far from any industrial facility
+    far_results = find_nearby_facilities(10.0, 70.0, radius_m=1000)
+    assert far_results == []
+

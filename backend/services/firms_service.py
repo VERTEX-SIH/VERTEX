@@ -9,7 +9,7 @@ from models.hotspot import FIRMSHotspot
 logger = logging.getLogger(__name__)
 
 # India bounding box: West, South, East, North
-INDIA_BBOX = "68.0,6.0,97.5,37.0"
+INDIA_BBOX = "68.0,6.0,97.5,37.5"
 # Karnataka bounding box for faster testing
 KARNATAKA_BBOX = "74.0,11.5,78.5,18.5"
 
@@ -31,10 +31,21 @@ except Exception as e:
     logger.error(f"Failed to load India boundary GeoJSON: {e}")
 
 def _point_in_india(lat: float, lon: float) -> bool:
+    try:
+        lat_f = float(lat)
+        lon_f = float(lon)
+    except (ValueError, TypeError):
+        return False
+    # Outer bounding box check (West: 68.0, South: 6.0, East: 97.5, North: 37.5)
+    if not (6.0 <= lat_f <= 37.5 and 68.0 <= lon_f <= 97.5):
+        return False
     if _INDIA_BOUNDARY_PREPARED is not None:
-        return _INDIA_BOUNDARY_PREPARED.covers(Point(lon, lat))
-    # Fallback if geojson is missing
-    return False
+        try:
+            return bool(_INDIA_BOUNDARY_PREPARED.covers(Point(lon_f, lat_f)))
+        except Exception:
+            return True
+    # Resilient fallback to bounding box if polygon shape is unavailable
+    return True
 
 async def fetch_realtime_hotspots(
     country: str = 'IND',
@@ -66,9 +77,10 @@ async def fetch_area_hotspots(
     days: int = 1,
     source: str = 'VIIRS_SNPP_NRT'
 ) -> List[FIRMSHotspot]:
-    """Fetch FIRMS hotspots for a specific bounding box."""
+    """Fetch FIRMS hotspots for a specific bounding box, bounded strictly to India."""
     url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{settings.FIRMS_MAP_KEY}/{source}/{bbox}/{days}"
-    return await _fetch_and_parse(url)
+    hotspots = await _fetch_and_parse(url)
+    return [h for h in hotspots if _point_in_india(h.latitude, h.longitude)]
 
 async def _fetch_and_parse(url: str) -> List[FIRMSHotspot]:
     async with httpx.AsyncClient() as client:

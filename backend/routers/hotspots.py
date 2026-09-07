@@ -2,7 +2,7 @@ from fastapi import APIRouter, Query, BackgroundTasks, HTTPException, Request, D
 from typing import List, Dict, Any, Optional
 import logging
 from services.classifier import classify_and_store, classify_hotspots
-from services.firms_service import fetch_realtime_hotspots
+from services.firms_service import fetch_realtime_hotspots, _point_in_india
 from services.persistence_service import calculate_persistent_sources
 from db.supabase_client import supabase_service
 from limiter import limiter
@@ -43,6 +43,14 @@ async def get_classified_hotspots(
         
         features = []
         for r in records:
+            # Exclude records outside India if queried for IND
+            if country == "IND":
+                lat = r.get("latitude")
+                lon = r.get("longitude")
+                if lat is not None and lon is not None:
+                    if not _point_in_india(lat, lon):
+                        continue
+
             # Filter by classification fields (since postgrest nested filtering can be tricky, we do it in memory for now)
             class_data = r.get("classifications", [])
             class_data.sort(key=lambda x: x.get("created_at", ""), reverse=True)
@@ -51,17 +59,17 @@ async def get_classified_hotspots(
             primary_osm = dict(primary_class.get("osm_context", {})) if primary_class else {}
             if primary_osm:
                 if primary_osm.get("nearest_facility_distance") is not None:
-                    primary_osm["nearest_facility_distance"] = round(min(float(primary_osm["nearest_facility_distance"]), 950.0), 2)
+                    primary_osm["nearest_facility_distance"] = round(float(primary_osm["nearest_facility_distance"]), 1)
                 if primary_osm.get("nearby_facilities"):
-                    clamped_facs = []
+                    facs = []
                     for f in primary_osm["nearby_facilities"]:
                         d = float(f.get("distance_m", f.get("distance_meters", 0)))
                         f_copy = dict(f)
-                        f_copy["distance_m"] = round(min(d, 950.0), 2)
+                        f_copy["distance_m"] = round(d, 1)
                         if "distance_meters" in f_copy:
-                            f_copy["distance_meters"] = round(min(d, 950.0), 2)
-                        clamped_facs.append(f_copy)
-                    primary_osm["nearby_facilities"] = clamped_facs
+                            f_copy["distance_meters"] = round(d, 1)
+                        facs.append(f_copy)
+                    primary_osm["nearby_facilities"] = facs
             
             if classification and primary_class.get("classification") != classification:
                 continue

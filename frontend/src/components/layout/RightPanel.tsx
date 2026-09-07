@@ -63,6 +63,14 @@ function getHaversineMeters(lat1: number, lon1: number, lat2: number, lon2: numb
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function formatFacilityDistance(distMeters: number | null | undefined): string {
+  if (distMeters == null || isNaN(distMeters)) return 'N/A';
+  if (distMeters >= 1000) {
+    return `${(distMeters / 1000).toFixed(1)} km`;
+  }
+  return `${Math.round(distMeters)} m`;
+}
+
 function getFallbackContext(lat: number, lon: number) {
   let nearest: any = null;
   let minDist = Infinity;
@@ -70,8 +78,10 @@ function getFallbackContext(lat: number, lon: number) {
     const dist = getHaversineMeters(lat, lon, fac.latitude, fac.longitude);
     if (dist < minDist) {
       minDist = dist;
-      const clampedDist = Math.min(Math.round(dist), 950);
-      nearest = { name: fac.name, type: fac.type, distance_m: clampedDist, distance_meters: clampedDist };
+      if (dist <= 1000) {
+        const roundedDist = Math.round(dist);
+        nearest = { name: fac.name, type: fac.type, distance_m: roundedDist, distance_meters: roundedDist };
+      }
     }
   }
   return {
@@ -79,8 +89,8 @@ function getFallbackContext(lat: number, lon: number) {
     nearest_facility_distance: nearest ? nearest.distance_m : null,
     nearest_facility_type: nearest ? nearest.type : null,
     facility_count_in_radius: nearest ? 1 : 0,
-    land_use_context: ['industrial'],
-    osm_source: 'OFFLINE_CATALOG',
+    land_use_context: nearest ? ['industrial'] : [],
+    osm_source: nearest ? 'OFFLINE_CATALOG' : 'LIVE_NO_FACILITY',
   };
 }
 
@@ -94,22 +104,22 @@ function normalizeContext(context: any) {
   }
 
   const rawFacilities = context.nearby_facilities ?? [];
-  const clampedFacilities = rawFacilities.map((f: any) => {
+  const validFacilities = rawFacilities.map((f: any) => {
     const d = Number(f.distance_m ?? f.distance_meters ?? 0);
-    const clamped = Math.min(d, 1000);
-    return { ...f, distance_m: clamped, distance_meters: clamped };
+    const rounded = Math.round(d);
+    return { ...f, distance_m: rounded, distance_meters: rounded };
   });
 
   const rawNearestDist = context.nearest_facility_distance;
-  const clampedNearestDist = rawNearestDist != null ? Math.min(Number(rawNearestDist), 1000) : null;
+  const validNearestDist = rawNearestDist != null ? Math.round(Number(rawNearestDist)) : null;
 
   return {
-    nearby_facilities: clampedFacilities,
-    nearest_facility_distance: clampedNearestDist,
+    nearby_facilities: validFacilities,
+    nearest_facility_distance: validNearestDist,
     nearest_facility_type:
       context.nearest_facility_type ?? null,
     facility_count_in_radius:
-      context.facility_count_in_radius ?? 0,
+      context.facility_count_in_radius ?? validFacilities.length,
     land_use_context:
       context.land_use_context ?? [],
     osm_source:
@@ -408,7 +418,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
 
   const rawContext = displayContext ?? EMPTY_CONTEXT;
   const context =
-    rawContext?.nearby_facilities && rawContext.nearby_facilities.length > 0
+    rawContext && rawContext.osm_source && rawContext.osm_source !== 'PENDING'
       ? rawContext
       : firms
       ? { ...rawContext, ...getFallbackContext(firms.latitude, firms.longitude) }
@@ -622,16 +632,10 @@ export function RightPanel({ hotspot }: RightPanelProps) {
 
                         <div className="text-secondary">
                           Distance:{' '}
-                          {(
-                            context
-                              .nearby_facilities[0]
-                              .distance_meters ??
-                            context
-                              .nearby_facilities[0]
-                              .distance_m ??
-                            0
-                          ).toFixed(0)}{' '}
-                          m
+                          {formatFacilityDistance(
+                            context.nearby_facilities[0].distance_meters ??
+                            context.nearby_facilities[0].distance_m
+                          )}
                         </div>
                       </div>
                     ) : (
@@ -842,16 +846,10 @@ export function RightPanel({ hotspot }: RightPanelProps) {
 
                           <div className="text-secondary">
                             Distance:{' '}
-                            {(
-                              context
-                                .nearby_facilities[0]
-                                .distance_meters ??
-                              context
-                                .nearby_facilities[0]
-                                .distance_m ??
-                              0
-                            ).toFixed(0)}{' '}
-                            m
+                            {formatFacilityDistance(
+                              context.nearby_facilities[0].distance_meters ??
+                              context.nearby_facilities[0].distance_m
+                            )}
                           </div>
                         </div>
                       ) : (

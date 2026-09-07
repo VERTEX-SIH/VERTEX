@@ -15,6 +15,7 @@ import { BottomTicker } from '@/components/layout/BottomTicker';
 import {
   INDIA_CENTER,
   INDIA_ZOOM,
+  isWithinIndia,
 } from '@/lib/constants';
 
 import { useGlobalState } from '@/lib/GlobalStateContext';
@@ -176,6 +177,12 @@ export default function DashboardPage() {
    * This keeps the UI and map synchronized.
    */
   const matchesFilters = (h: ClassifiedHotspot) => {
+    const lat = Number(h?.hotspot?.latitude);
+    const lon = Number(h?.hotspot?.longitude);
+    if (!isWithinIndia(lat, lon)) {
+      return false;
+    }
+
     const classification =
       h?.classification?.classification ??
       ClassificationType.UNCLASSIFIED;

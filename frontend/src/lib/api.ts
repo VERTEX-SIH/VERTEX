@@ -508,7 +508,11 @@ export async function fetchClassifiedHotspots(
 
         } as unknown as ClassifiedHotspot;
       }
-    );
+    ).filter((item: any) => {
+      const lat = Number(item?.hotspot?.latitude);
+      const lon = Number(item?.hotspot?.longitude);
+      return Number.isFinite(lat) && Number.isFinite(lon) && lat >= 6.0 && lat <= 37.5 && lon >= 68.0 && lon <= 97.5;
+    });
   }
 
 

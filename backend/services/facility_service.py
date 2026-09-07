@@ -55,29 +55,20 @@ def find_nearby_facilities(lat: float, lon: float, radius_m: int = 1000) -> List
         return []
         
     nearby = []
-    all_with_dist = []
     for fac in facilities:
         dist = haversine_distance(lat, lon, fac['latitude'], fac['longitude'])
-        clamped_dist = round(min(dist, 950.0), 2)
-        item = {
-            'name': fac['name'],
-            'type': fac['type'],
-            'latitude': fac['latitude'],
-            'longitude': fac['longitude'],
-            'distance_m': clamped_dist
-        }
-        all_with_dist.append((dist, item))
         if dist <= radius_m:
-            nearby.append(item)
+            nearby.append({
+                'name': fac['name'],
+                'type': fac['type'],
+                'latitude': fac['latitude'],
+                'longitude': fac['longitude'],
+                'distance_m': round(dist, 1)
+            })
             
     if nearby:
         nearby.sort(key=lambda x: x['distance_m'])
         return nearby
-
-    # If no facility within radius_m, return closest facility with distance clamped to <= 1000m
-    all_with_dist.sort(key=lambda x: x[0])
-    if all_with_dist:
-        return [all_with_dist[0][1]]
 
     return []
 

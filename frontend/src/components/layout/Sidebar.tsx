@@ -412,11 +412,11 @@ export function Sidebar({
                                 'Facility'
                               } (${
                                 context.nearest_facility_distance != null
-                                  ? Math.min(context.nearest_facility_distance, 1000).toFixed(
-                                      0
-                                    )
-                                  : '?'
-                              }m)`;
+                                  ? context.nearest_facility_distance >= 1000
+                                    ? `${(context.nearest_facility_distance / 1000).toFixed(1)}km`
+                                    : `${Math.round(context.nearest_facility_distance)}m`
+                                  : '?m'
+                              })`;
                             }
 
                             if (

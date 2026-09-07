@@ -53,6 +53,14 @@ function getHaversineMeters(lat1: number, lon1: number, lat2: number, lon2: numb
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function formatFacilityDistance(distMeters: number | null | undefined): string {
+  if (distMeters == null || isNaN(distMeters)) return 'N/A';
+  if (distMeters >= 1000) {
+    return `${(distMeters / 1000).toFixed(1)}km`;
+  }
+  return `${Math.round(distMeters)}m`;
+}
+
 function getFallbackContext(lat: number, lon: number) {
   let nearest: any = null;
   let minDist = Infinity;
@@ -60,8 +68,10 @@ function getFallbackContext(lat: number, lon: number) {
     const dist = getHaversineMeters(lat, lon, fac.latitude, fac.longitude);
     if (dist < minDist) {
       minDist = dist;
-      const clampedDist = Math.min(Math.round(dist), 950);
-      nearest = { name: fac.name, type: fac.type, distance_m: clampedDist, distance_meters: clampedDist };
+      if (dist <= 1000) {
+        const roundedDist = Math.round(dist);
+        nearest = { name: fac.name, type: fac.type, distance_m: roundedDist, distance_meters: roundedDist };
+      }
     }
   }
   return {
@@ -69,8 +79,8 @@ function getFallbackContext(lat: number, lon: number) {
     nearest_facility_distance: nearest ? nearest.distance_m : null,
     nearest_facility_type: nearest ? nearest.type : null,
     facility_count_in_radius: nearest ? 1 : 0,
-    land_use_context: ['industrial'],
-    osm_source: 'OFFLINE_CATALOG',
+    land_use_context: nearest ? ['industrial'] : [],
+    osm_source: nearest ? 'OFFLINE_CATALOG' : 'LIVE_NO_FACILITY',
   };
 }
 
@@ -105,9 +115,11 @@ export function EvidenceStackModal({
         };
 
   const context =
-    rawContext?.nearby_facilities && rawContext.nearby_facilities.length > 0
+    rawContext && rawContext.osm_source && rawContext.osm_source !== 'PENDING'
       ? rawContext
-      : { ...rawContext, ...getFallbackContext(firms.latitude, firms.longitude) };
+      : firms
+      ? { ...rawContext, ...getFallbackContext(firms.latitude, firms.longitude) }
+      : rawContext;
 
   return (
     <div className="fixed top-[40px] right-0 bottom-0 left-0 z-[40] flex flex-col bg-surface/95 backdrop-blur-md">
@@ -350,7 +362,7 @@ export function EvidenceStackModal({
                     </div>
                     <div className="text-right">
                       <div className="font-mono-data-md text-primary text-[16px]">
-                        {Math.min(Number(fac.distance_m ?? fac.distance_meters ?? 0), 1000).toFixed(0)}m
+                        {formatFacilityDistance(Number(fac.distance_m ?? fac.distance_meters))}
                       </div>
                       <div className="font-mono text-[9px] text-secondary uppercase">
                         DISTANCE
