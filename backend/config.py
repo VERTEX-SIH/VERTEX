@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:3000"
     BACKEND_PORT: int = 8000
     AI_CLASSIFICATION_LIMIT: int = 50
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-3.6-flash"
 
     # Admin Seeding
     ADMIN_EMAIL: str = "admin@example.com"
