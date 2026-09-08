@@ -128,12 +128,18 @@ async def classify_hotspot_with_context(hotspot: FIRMSHotspot, osm_context: OSMC
     )
 
 async def classify_hotspots(hotspots: List[FIRMSHotspot]) -> List[ClassifiedHotspot]:
+    from services.firms_service import point_in_india
     classified_results = []
     
     for hotspot in hotspots:
         if hotspot.frp is None or hotspot.frp <= 0:
             continue
             
+        # Guarantee no AI / rule classification occurs outside India
+        if not point_in_india(hotspot.latitude, hotspot.longitude):
+            logger.info(f"Skipping classification for hotspot ({hotspot.latitude}, {hotspot.longitude}) outside India.")
+            continue
+
         try:
             osm_context = await enrich_hotspot(hotspot)
         except Exception as e:

@@ -30,11 +30,13 @@ try:
 except Exception as e:
     logger.error(f"Failed to load India boundary GeoJSON: {e}")
 
-def _point_in_india(lat: float, lon: float) -> bool:
+def point_in_india(lat: float, lon: float) -> bool:
     if _INDIA_BOUNDARY_PREPARED is not None:
         return _INDIA_BOUNDARY_PREPARED.covers(Point(lon, lat))
-    # Fallback if geojson is missing
-    return False
+    # Fallback to India bounding box check if GeoJSON is missing
+    return 6.0 <= lat <= 37.0 and 68.0 <= lon <= 97.5
+
+_point_in_india = point_in_india
 
 async def fetch_realtime_hotspots(
     country: str = 'IND',
@@ -44,18 +46,17 @@ async def fetch_realtime_hotspots(
 ) -> List[FIRMSHotspot]:
     """
     Fetch real-time FIRMS hotspots. Uses area/bbox API (more reliable than country API).
-    Defaults to Karnataka's bounding box when no bbox is provided to keep processing fast.
+    Defaults to India's bounding box to keep processing bounded.
     """
     if bbox is None:
-        bbox = INDIA_BBOX if country == 'IND' else INDIA_BBOX
+        bbox = INDIA_BBOX
 
     url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{settings.FIRMS_MAP_KEY}/{source}/{bbox}/{days}"
     hotspots = await _fetch_and_parse(url)
     
-    if country == 'IND':
-        before = len(hotspots)
-        hotspots = [h for h in hotspots if _point_in_india(h.latitude, h.longitude)]
-        logger.info(f"India boundary filter: {before} → {len(hotspots)} hotspots")
+    before = len(hotspots)
+    hotspots = [h for h in hotspots if point_in_india(h.latitude, h.longitude)]
+    logger.info(f"India boundary filter: {before} → {len(hotspots)} hotspots")
         
     # Sort by FRP descending so clients can easily slice highest priority if needed
     hotspots.sort(key=lambda h: h.frp, reverse=True)
@@ -66,9 +67,11 @@ async def fetch_area_hotspots(
     days: int = 1,
     source: str = 'VIIRS_SNPP_NRT'
 ) -> List[FIRMSHotspot]:
-    """Fetch FIRMS hotspots for a specific bounding box."""
+    """Fetch FIRMS hotspots for a specific bounding box (filtered strictly to India)."""
     url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{settings.FIRMS_MAP_KEY}/{source}/{bbox}/{days}"
-    return await _fetch_and_parse(url)
+    hotspots = await _fetch_and_parse(url)
+    hotspots = [h for h in hotspots if point_in_india(h.latitude, h.longitude)]
+    return hotspots
 
 async def _fetch_and_parse(url: str) -> List[FIRMSHotspot]:
     async with httpx.AsyncClient() as client:

@@ -2,6 +2,8 @@ from fastapi import APIRouter, Request
 from routers.hotspots import latest_results
 from limiter import limiter
 
+from services.firms_service import point_in_india
+
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 @router.get("/summary")
@@ -15,7 +17,7 @@ async def get_analytics_summary(request: Request):
         start = 0
         while True:
             res = supabase_service.table("hotspots").select(
-                "id, frp, classifications(classification, risk_level, created_at)"
+                "id, latitude, longitude, frp, classifications(classification, risk_level, created_at)"
             ).range(start, start + page_size - 1).execute()
             if not res.data:
                 break
@@ -42,6 +44,11 @@ async def get_analytics_summary(request: Request):
         ai_pending = 0
         
         for r in all_data:
+            lat = float(r.get("latitude", 0))
+            lon = float(r.get("longitude", 0))
+            if not point_in_india(lat, lon):
+                continue
+
             frp = r.get("frp")
             if frp is not None:
                 frps.append(float(frp))
@@ -65,7 +72,7 @@ async def get_analytics_summary(request: Request):
             if not has_valid_classification:
                 ai_pending += 1
         
-        total = len(all_data)
+        total = ai_classified + ai_pending
         
         return {
             "total_hotspots": total,

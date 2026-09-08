@@ -5,7 +5,7 @@ import { Map, Source, Layer, MapRef, Popup, NavigationControl, ViewStateChangeEv
 import 'maplibre-gl/dist/maplibre-gl.css';
 import maplibregl from 'maplibre-gl';
 import { ClassifiedHotspot, CLASSIFICATION_COLORS, ClassificationType } from '@/types';
-import { DEFAULT_CENTER, DEFAULT_ZOOM } from '@/lib/constants';
+import { DEFAULT_CENTER, DEFAULT_ZOOM, INDIA_BOUNDS } from '@/lib/constants';
 import { useGlobalState } from '@/lib/GlobalStateContext';
 import { FirePopup } from './FirePopup';
 

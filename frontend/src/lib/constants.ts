@@ -28,3 +28,5 @@ export const MAP_STYLE = {
 };
 export const INDIA_CENTER: [number, number] = [78.9629, 20.5937];
 export const INDIA_ZOOM = 5;
+export const INDIA_BOUNDS: [[number, number], [number, number]] = [[60.0, 5.0], [102.0, 38.5]];
+

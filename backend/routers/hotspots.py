@@ -2,7 +2,7 @@ from fastapi import APIRouter, Query, BackgroundTasks, HTTPException, Request, D
 from typing import List, Dict, Any, Optional
 import logging
 from services.classifier import classify_and_store, classify_hotspots
-from services.firms_service import fetch_realtime_hotspots
+from services.firms_service import fetch_realtime_hotspots, point_in_india
 from services.persistence_service import calculate_persistent_sources
 from db.supabase_client import supabase_service
 from limiter import limiter
@@ -43,6 +43,11 @@ async def get_classified_hotspots(
         
         features = []
         for r in records:
+            lat = float(r.get("latitude", 0))
+            lon = float(r.get("longitude", 0))
+            if not point_in_india(lat, lon):
+                continue
+
             # Filter by classification fields (since postgrest nested filtering can be tricky, we do it in memory for now)
             class_data = r.get("classifications", [])
             class_data.sort(key=lambda x: x.get("created_at", ""), reverse=True)
