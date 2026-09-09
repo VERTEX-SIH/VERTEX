@@ -1,8 +1,10 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useGlobalState } from '@/lib/GlobalStateContext';
+import { useVertexUser } from '@/lib/auth-session';
+import { AuthRequiredDialog } from '@/components/auth/AuthRequiredDialog';
 import {
   CLASSIFICATION_COLORS,
   CLASSIFICATION_LABELS,
@@ -23,7 +25,7 @@ import {
   Legend,
 } from 'recharts';
 
-export default function AnalyticsPage() {
+function AnalyticsWorkspace() {
   const router = useRouter();
   const {
     analyticsSummary: summary,
@@ -32,6 +34,9 @@ export default function AnalyticsPage() {
     loading,
     error,
   } = useGlobalState();
+
+  const [facilitySearch, setFacilitySearch] = useState('');
+  const isFacilitySearching = facilitySearch.trim().length > 0;
 
   /*
    * =========================================================
@@ -339,6 +344,13 @@ export default function AnalyticsPage() {
       )
       .slice(0, 10);
 
+  const filteredFacilities = useMemo(() => {
+    const list = Object.values(facilityMap).sort((a, b) => b.count - a.count);
+    if (!facilitySearch.trim()) return list.slice(0, 10);
+    const q = facilitySearch.toLowerCase();
+    return list.filter((f) => f.name.toLowerCase().includes(q) || f.type.toLowerCase().includes(q)).slice(0, 15);
+  }, [facilityMap, facilitySearch]);
+
   const riskOrder = [
     'CRITICAL',
     'HIGH',
@@ -424,21 +436,26 @@ export default function AnalyticsPage() {
 
   return (
     <div className="bg-surface-dim flex-1 min-h-0 text-on-surface overflow-y-auto">
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div className="w-full px-6 sm:px-10 lg:px-14 xl:px-20 py-8 space-y-6">
 
         
-{/* =================================================
+        {/* =================================================
             PAGE HEADER
             ================================================= */}
 
-        <div className="border-b border-outline-variant pb-4 mb-6">
-          <h1 className="font-headline-sm text-2xl text-primary uppercase tracking-widest">
-            ANALYTICS
-          </h1>
-
-          <p className="font-body-sm text-secondary uppercase tracking-widest mt-1 text-xs">
-            CURRENT FIRMS THERMAL EVENT ANALYSIS
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#efbc9d]/60 pb-5 mb-6">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[10px] font-bold tracking-[.18em] text-[#f5751c]">VERTEX ANALYTICS ENGINE</span>
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            </div>
+            <h1 className="mt-2 font-headline-sm text-3xl font-black text-[#193946] tracking-wide">
+              Thermal Event Analytics
+            </h1>
+            <p className="mt-1 text-sm text-[#556575]">
+              Authoritative FIRMS satellite observations aggregated with AI classification and spatial facility intelligence.
+            </p>
+          </div>
         </div>
 
         {/* =================================================
@@ -447,42 +464,46 @@ export default function AnalyticsPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 
-          <div className="bg-surface border border-outline-variant p-4">
-            <div className="font-mono-label text-[10px] text-secondary tracking-widest uppercase mb-2">
+          <div className="border border-[#193946]/30 bg-[#193946]/5 p-4 shadow-sm">
+            <div className="font-mono text-[10px] tracking-widest text-[#193946] font-bold uppercase flex items-center gap-1.5 mb-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#193946]" />
               TOTAL FIRMS OBSERVATIONS
             </div>
 
-            <div className="font-mono-data-md text-3xl text-on-surface">
+            <div className="font-mono text-3xl font-black text-[#193946]">
               {totalFirmsObservations}
             </div>
           </div>
 
-          <div className="bg-surface border border-outline-variant p-4">
-            <div className="font-mono-label text-[10px] text-secondary tracking-widest uppercase mb-2">
+          <div className="border border-[#556575]/30 bg-[#556575]/5 p-4 shadow-sm">
+            <div className="font-mono text-[10px] tracking-widest text-[#556575] font-bold uppercase flex items-center gap-1.5 mb-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#556575]" />
               AI CLASSIFIED
             </div>
 
-            <div className="font-mono-data-md text-3xl text-primary">
+            <div className="font-mono text-3xl font-black text-[#193946]">
               {aiClassified}
             </div>
           </div>
 
-          <div className="bg-surface border border-outline-variant p-4">
-            <div className="font-mono-label text-[10px] text-secondary tracking-widest uppercase mb-2">
+          <div className="border border-[#fca26e]/50 bg-[#fca26e]/10 p-4 shadow-sm">
+            <div className="font-mono text-[10px] tracking-widest text-[#f5751c] font-bold uppercase flex items-center gap-1.5 mb-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#f5751c]" />
               AI PENDING
             </div>
 
-            <div className="font-mono-data-md text-3xl text-error">
+            <div className="font-mono text-3xl font-black text-[#f5751c]">
               {aiPending}
             </div>
           </div>
 
-          <div className="bg-surface border border-outline-variant p-4">
-            <div className="font-mono-label text-[10px] text-secondary tracking-widest uppercase mb-2">
+          <div className="border border-[#efbc9d]/70 bg-[#efbc9d]/15 p-4 shadow-sm">
+            <div className="font-mono text-[10px] tracking-widest text-[#193946] font-bold uppercase flex items-center gap-1.5 mb-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#efbc9d]" />
               AVERAGE FRP (MW)
             </div>
 
-            <div className="font-mono-data-md text-3xl text-on-surface">
+            <div className="font-mono text-3xl font-black text-[#193946]">
               {Number(averageFrp || 0).toFixed(1)}
             </div>
           </div>
@@ -495,22 +516,24 @@ export default function AnalyticsPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-          <div className="bg-surface border border-outline-variant p-4">
-            <div className="font-mono-label text-[10px] text-secondary tracking-widest uppercase mb-2">
+          <div className="border border-[#193946]/30 bg-[#193946]/5 p-4 shadow-sm">
+            <div className="font-mono text-[10px] tracking-widest text-[#193946] font-bold uppercase flex items-center gap-1.5 mb-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#193946]" />
               INDUSTRIAL / PERSISTENT EVENTS
             </div>
 
-            <div className="font-mono-data-md text-2xl text-primary">
+            <div className="font-mono text-2xl font-black text-[#193946]">
               {industrialEvents}
             </div>
           </div>
 
-          <div className="bg-surface border border-outline-variant p-4">
-            <div className="font-mono-label text-[10px] text-secondary tracking-widest uppercase mb-2">
+          <div className="border border-[#f5751c]/50 bg-[#f5751c]/10 p-4 shadow-sm">
+            <div className="font-mono text-[10px] tracking-widest text-[#f5751c] font-bold uppercase flex items-center gap-1.5 mb-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#f5751c]" />
               HIGH / CRITICAL RISK
             </div>
 
-            <div className="font-mono-data-md text-2xl text-error">
+            <div className="font-mono text-2xl font-black text-[#f5751c]">
               {highRisk}
             </div>
           </div>
@@ -525,9 +548,10 @@ export default function AnalyticsPage() {
 
           {/* Classification */}
 
-          <div className="bg-surface border border-outline-variant p-4 flex flex-col h-[400px]">
+          <div className="bg-surface border border-[#efbc9d]/60 shadow-sm p-4 flex flex-col h-[400px]">
 
-            <div className="font-headline-sm text-[14px] text-primary uppercase mb-4">
+            <div className="font-mono text-[11px] font-bold text-[#193946] uppercase tracking-wider mb-4 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#193946]" />
               CLASSIFICATION DISTRIBUTION
             </div>
 
@@ -535,7 +559,7 @@ export default function AnalyticsPage() {
 
               {pieData.length === 0 ? (
                 <div className="h-full flex items-center justify-center">
-                  <span className="font-mono text-[10px] text-secondary uppercase tracking-widest">
+                  <span className="font-mono text-[10px] text-[#556575] uppercase tracking-widest">
                     NO CLASSIFICATION DATA
                   </span>
                 </div>
@@ -565,13 +589,14 @@ export default function AnalyticsPage() {
 
                     <RechartsTooltip
                       contentStyle={{
-                        backgroundColor: '#1e1e1e',
-                        borderColor: '#333333',
+                        backgroundColor: '#193946',
+                        borderColor: '#556575',
                         borderRadius: '0',
                         fontFamily: 'JetBrains Mono',
+                        color: '#ffffff',
                       }}
                       itemStyle={{
-                        color: '#e0e0e0',
+                        color: '#ffffff',
                         fontSize: '12px',
                       }}
                     />
@@ -595,9 +620,10 @@ export default function AnalyticsPage() {
 
           {/* FRP */}
 
-          <div className="bg-surface border border-outline-variant p-4 flex flex-col h-[400px]">
+          <div className="bg-surface border border-[#efbc9d]/60 shadow-sm p-4 flex flex-col h-[400px]">
 
-            <div className="font-headline-sm text-[14px] text-primary uppercase mb-4">
+            <div className="font-mono text-[11px] font-bold text-[#193946] uppercase tracking-wider mb-4 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#f5751c]" />
               FRP DISTRIBUTION (MW)
             </div>
 
@@ -608,15 +634,16 @@ export default function AnalyticsPage() {
 
                   <CartesianGrid
                     strokeDasharray="3 3"
-                    stroke="#333333"
+                    stroke="#efbc9d"
+                    strokeOpacity={0.3}
                     vertical={false}
                   />
 
                   <XAxis
                     dataKey="range"
-                    stroke="#888888"
+                    stroke="#556575"
                     tick={{
-                      fill: '#888888',
+                      fill: '#556575',
                       fontSize: 10,
                       fontFamily: 'JetBrains Mono',
                     }}
@@ -624,9 +651,9 @@ export default function AnalyticsPage() {
 
                   <YAxis
                     allowDecimals={false}
-                    stroke="#888888"
+                    stroke="#556575"
                     tick={{
-                      fill: '#888888',
+                      fill: '#556575',
                       fontSize: 10,
                       fontFamily: 'JetBrains Mono',
                     }}
@@ -634,16 +661,17 @@ export default function AnalyticsPage() {
 
                   <RechartsTooltip
                     contentStyle={{
-                      backgroundColor: '#1e1e1e',
-                      borderColor: '#333333',
+                      backgroundColor: '#193946',
+                      borderColor: '#556575',
                       borderRadius: '0',
                       fontFamily: 'JetBrains Mono',
+                      color: '#ffffff',
                     }}
                   />
 
                   <Bar
                     dataKey="count"
-                    fill="#a14000"
+                    fill="#f5751c"
                     radius={[2, 2, 0, 0]}
                   />
 
@@ -663,9 +691,10 @@ export default function AnalyticsPage() {
 
           {/* Risk */}
 
-          <div className="bg-surface border border-outline-variant p-4 flex flex-col h-[300px]">
+          <div className="bg-surface border border-[#efbc9d]/60 shadow-sm p-4 flex flex-col h-[320px]">
 
-            <div className="font-headline-sm text-[14px] text-primary uppercase mb-4">
+            <div className="font-mono text-[11px] font-bold text-[#193946] uppercase tracking-wider mb-4 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#193946]" />
               RISK LEVEL DISTRIBUTION
             </div>
 
@@ -673,7 +702,7 @@ export default function AnalyticsPage() {
 
               {riskDistribution.length === 0 ? (
                 <div className="h-full flex items-center justify-center">
-                  <span className="font-mono text-[10px] text-secondary uppercase tracking-widest">
+                  <span className="font-mono text-[10px] text-[#556575] uppercase tracking-widest">
                     NO RISK DATA
                   </span>
                 </div>
@@ -686,16 +715,17 @@ export default function AnalyticsPage() {
 
                     <CartesianGrid
                       strokeDasharray="3 3"
-                      stroke="#333333"
+                      stroke="#efbc9d"
+                      strokeOpacity={0.3}
                       horizontal={false}
                     />
 
                     <XAxis
                       type="number"
                       allowDecimals={false}
-                      stroke="#888888"
+                      stroke="#556575"
                       tick={{
-                        fill: '#888888',
+                        fill: '#556575',
                         fontSize: 10,
                         fontFamily: 'JetBrains Mono',
                       }}
@@ -704,10 +734,10 @@ export default function AnalyticsPage() {
                     <YAxis
                       dataKey="level"
                       type="category"
-                      stroke="#888888"
+                      stroke="#556575"
                       width={80}
                       tick={{
-                        fill: '#888888',
+                        fill: '#556575',
                         fontSize: 10,
                         fontFamily: 'JetBrains Mono',
                       }}
@@ -715,16 +745,17 @@ export default function AnalyticsPage() {
 
                     <RechartsTooltip
                       contentStyle={{
-                        backgroundColor: '#1e1e1e',
-                        borderColor: '#333333',
+                        backgroundColor: '#193946',
+                        borderColor: '#556575',
                         borderRadius: '0',
                         fontFamily: 'JetBrains Mono',
+                        color: '#ffffff',
                       }}
                     />
 
                     <Bar
                       dataKey="count"
-                      fill="#ea580c"
+                      fill="#193946"
                       radius={[0, 2, 2, 0]}
                     />
 
@@ -737,29 +768,71 @@ export default function AnalyticsPage() {
 
           {/* Facilities */}
 
-          <div className="bg-surface border border-outline-variant p-4 flex flex-col h-[300px] overflow-hidden">
+          <div className={`bg-surface transition-all border p-4 flex flex-col h-[320px] overflow-hidden shadow-sm ${
+            isFacilitySearching ? 'border-2 border-[#193946] shadow-[0_4px_20px_rgba(25,57,70,0.15)]' : 'border border-[#efbc9d]/60'
+          }`}>
 
-            <div className="font-headline-sm text-[14px] text-primary uppercase mb-4">
-              TOP FACILITIES BY THERMAL ACTIVITY
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div className="font-mono text-[11px] font-bold text-[#193946] uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#556575]" />
+                TOP FACILITIES BY THERMAL ACTIVITY
+              </div>
+
+              <div className={`relative transition-all ${
+                isFacilitySearching
+                  ? 'border-2 border-[#193946] bg-[#193946]/10 ring-2 ring-[#193946]/20'
+                  : 'border border-[#efbc9d] bg-surface hover:border-[#193946]/50 focus-within:border-[#193946]'
+              }`}>
+                <span className={`material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-[14px] ${
+                  isFacilitySearching ? 'text-[#193946] font-bold' : 'text-[#556575]'
+                }`}>
+                  search
+                </span>
+                <input
+                  type="text"
+                  value={facilitySearch}
+                  onChange={(e) => setFacilitySearch(e.target.value)}
+                  placeholder="Filter facilities..."
+                  className={`bg-transparent py-1 pl-7 pr-6 text-[11px] outline-none ${
+                    isFacilitySearching ? 'text-[#193946] font-bold placeholder:text-[#556575]/60' : 'text-on-surface placeholder:text-secondary/60'
+                  }`}
+                />
+                {isFacilitySearching && (
+                  <button
+                    onClick={() => setFacilitySearch('')}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#556575] hover:text-[#193946]"
+                    title="Clear filter"
+                  >
+                    <span className="material-symbols-outlined text-[13px]">close</span>
+                  </button>
+                )}
+              </div>
             </div>
+
+            {isFacilitySearching && (
+              <div className="flex items-center justify-between bg-[#193946] text-white px-2.5 py-1 mb-2 font-mono text-[10px] tracking-wider rounded-sm shrink-0">
+                <span>FILTER: &ldquo;{facilitySearch}&rdquo;</span>
+                <span className="bg-[#556575] px-1.5 py-0.5 rounded text-[9px] font-bold">{filteredFacilities.length} MATCHES</span>
+              </div>
+            )}
 
             <div className="flex-1 overflow-auto">
 
               <table className="w-full text-left border-collapse">
 
-                <thead className="sticky top-0 bg-surface">
+                <thead className="sticky top-0 bg-[#193946]/10 border-b border-[#193946]/30">
 
                   <tr>
 
-                    <th className="font-mono-label text-[10px] text-secondary tracking-widest border-b border-outline-variant pb-2">
+                    <th className="font-mono text-[10px] text-[#193946] font-bold tracking-widest pb-2 p-2">
                       FACILITY NAME
                     </th>
 
-                    <th className="font-mono-label text-[10px] text-secondary tracking-widest border-b border-outline-variant pb-2">
+                    <th className="font-mono text-[10px] text-[#193946] font-bold tracking-widest pb-2 p-2">
                       TYPE
                     </th>
 
-                    <th className="font-mono-label text-[10px] text-secondary tracking-widest border-b border-outline-variant pb-2 text-right">
+                    <th className="font-mono text-[10px] text-[#193946] font-bold tracking-widest pb-2 p-2 text-right">
                       EVENTS
                     </th>
 
@@ -767,24 +840,24 @@ export default function AnalyticsPage() {
 
                 </thead>
 
-                <tbody>
+                <tbody className="divide-y divide-[#efbc9d]/40">
 
-                  {topFacilities.map(
+                  {filteredFacilities.map(
                     (facility, index) => (
                       <tr
                         key={`${facility.name}-${facility.type}-${index}`}
-                        className="hover:bg-surface-container-high transition-colors"
+                        className="hover:bg-[#193946]/[0.04] transition-colors"
                       >
 
-                        <td className="font-body-sm text-[12px] py-2 border-b border-outline-variant">
+                        <td className="font-body-sm text-[12px] p-2 text-on-surface font-medium">
                           {facility.name}
                         </td>
 
-                        <td className="font-body-sm text-[12px] py-2 border-b border-outline-variant text-secondary capitalize">
+                        <td className="font-body-sm text-[12px] p-2 text-[#556575] capitalize">
                           {facility.type}
                         </td>
 
-                        <td className="font-mono-data-sm text-[12px] py-2 border-b border-outline-variant text-right text-primary">
+                        <td className="font-mono text-[12px] p-2 text-right text-[#f5751c] font-bold">
                           {facility.count}
                         </td>
 
@@ -792,13 +865,13 @@ export default function AnalyticsPage() {
                     )
                   )}
 
-                  {topFacilities.length === 0 && (
+                  {filteredFacilities.length === 0 && (
                     <tr>
                       <td
                         colSpan={3}
-                        className="text-center py-4 font-mono text-[10px] text-secondary uppercase tracking-widest"
+                        className="text-center py-6 font-mono text-[10px] text-[#556575] uppercase tracking-widest"
                       >
-                        NO FACILITY DATA AVAILABLE
+                        {isFacilitySearching ? `NO FACILITIES MATCHED "${facilitySearch}"` : 'NO FACILITY DATA AVAILABLE'}
                       </td>
                     </tr>
                   )}
@@ -815,4 +888,14 @@ export default function AnalyticsPage() {
       </div>
     </div>
   );
+}
+
+export default function AnalyticsPage() {
+  const { user, ready } = useVertexUser();
+
+  if (!ready) {
+    return <div className="flex-1 bg-surface-dim" />;
+  }
+
+  return user ? <AnalyticsWorkspace /> : <AuthRequiredDialog />;
 }

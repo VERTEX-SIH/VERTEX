@@ -23,6 +23,7 @@ export default function AdminPage() {
   const [verified, setVerified] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [deletingUser, setDeletingUser] = useState<ManagedUser | null>(null);
+  const isSearching = searchQuery.trim().length > 0;
 
   // Auto-verify if adminPassword was saved in current tab session
   useEffect(() => {
@@ -150,22 +151,22 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="flex-1 min-h-0 overflow-y-auto bg-surface-dim p-5 sm:p-8">
-      <div className="mx-auto max-w-6xl">
+    <main className="flex-1 min-h-0 overflow-y-auto bg-surface-dim">
+      <div className="w-full px-6 sm:px-10 lg:px-14 xl:px-20 py-8">
         {/* Header Bar */}
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-outline-variant pb-5">
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#efbc9d]/60 pb-5">
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] font-bold tracking-[.18em] text-primary">VERTEX ADMIN CONSOLE</span>
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="font-mono text-[10px] font-bold tracking-[.18em] text-[#f5751c]">VERTEX ADMIN CONSOLE</span>
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             </div>
-            <h1 className="mt-2 font-headline-sm text-3xl text-on-surface">User Management</h1>
-            <p className="mt-1 text-sm text-secondary">View all registered platform accounts and manage user access permissions.</p>
+            <h1 className="mt-2 font-headline-sm text-3xl font-black text-[#193946] tracking-wide">User Management</h1>
+            <p className="mt-1 text-sm text-[#556575]">View all registered platform accounts and manage user access permissions.</p>
           </div>
           <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 border border-outline-variant px-4 py-2.5 font-mono text-[10px] font-bold tracking-widest text-secondary hover:border-primary hover:text-primary transition-colors bg-surface"
+              className="inline-flex items-center gap-2 border border-[#193946]/30 px-4 py-2.5 font-mono text-[10px] font-bold tracking-widest text-[#193946] hover:bg-[#193946]/10 hover:border-[#193946] transition-colors bg-surface"
             >
               <span className="material-symbols-outlined text-[16px]">arrow_back</span>
               RETURN HOME
@@ -243,135 +244,218 @@ export default function AdminPage() {
             </form>
           </section>
         ) : (
-          /* User Management Section */
           <section className="mt-8 space-y-4">
             {/* Stats Cards */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="border border-outline-variant bg-surface p-4">
-                <div className="font-mono text-[10px] tracking-widest text-secondary uppercase">Total Accounts</div>
-                <div className="mt-1 font-mono text-2xl font-bold text-on-surface">{userStats.total}</div>
+              <div className="border border-[#193946]/30 bg-[#193946]/5 p-4 shadow-sm">
+                <div className="font-mono text-[10px] tracking-widest text-[#193946] font-bold uppercase flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#193946]" />
+                  Total Accounts
+                </div>
+                <div className="mt-1 font-mono text-2xl font-black text-[#193946]">{userStats.total}</div>
               </div>
-              <div className="border border-outline-variant bg-surface p-4">
-                <div className="font-mono text-[10px] tracking-widest text-secondary uppercase">Regular Users</div>
-                <div className="mt-1 font-mono text-2xl font-bold text-secondary">{userStats.standard}</div>
+              <div className="border border-[#556575]/30 bg-[#556575]/5 p-4 shadow-sm">
+                <div className="font-mono text-[10px] tracking-widest text-[#556575] font-bold uppercase flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#556575]" />
+                  Regular Users
+                </div>
+                <div className="mt-1 font-mono text-2xl font-black text-[#193946]">{userStats.standard}</div>
               </div>
-              <div className="border border-primary/50 bg-primary/5 p-4">
-                <div className="font-mono text-[10px] tracking-widest text-primary uppercase">Administrators</div>
-                <div className="mt-1 font-mono text-2xl font-bold text-primary">{userStats.admins}</div>
+              <div className="border border-[#f5751c]/50 bg-[#f5751c]/10 p-4 shadow-sm">
+                <div className="font-mono text-[10px] tracking-widest text-[#f5751c] font-bold uppercase flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#f5751c]" />
+                  Administrators
+                </div>
+                <div className="mt-1 font-mono text-2xl font-black text-[#f5751c]">{userStats.admins}</div>
               </div>
             </div>
 
             {/* Main Table Card */}
-            <div className="border border-outline-variant bg-surface shadow-xl">
+            <div className={`bg-surface shadow-xl transition-all border ${
+              isSearching ? 'border-2 border-[#193946] shadow-[0_6px_28px_rgba(25,57,70,0.16)]' : 'border border-[#efbc9d]/60'
+            }`}>
               {/* Controls bar */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-b border-outline-variant p-4 bg-surface-container-lowest">
-                <div className="relative flex-1 max-w-md">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-secondary">
-                    search
-                  </span>
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by username, name, or UUID..."
-                    className="w-full border border-outline-variant bg-surface px-3 py-2 pl-9 text-xs text-on-surface placeholder:text-secondary/60 outline-none focus:border-primary"
-                  />
-                </div>
-                <div className="flex items-center gap-2 self-end sm:self-auto">
-                  <button
-                    onClick={handleRefresh}
-                    disabled={loading}
-                    className="inline-flex items-center gap-1.5 border border-outline-variant bg-surface px-3 py-2 font-mono text-[10px] font-bold tracking-widest text-secondary hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
-                  >
-                    <span className={`material-symbols-outlined text-[16px] ${loading ? 'animate-spin' : ''}`}>
-                      refresh
-                    </span>
-                    REFRESH
-                  </button>
-                </div>
-              </div>
+              <div className={`flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 transition-colors border-b ${
+                isSearching ? 'bg-[#193946]/10 border-[#193946]/30' : 'bg-surface-container-lowest border-[#efbc9d]/60'
+              }`}>
+                <div className="flex items-center gap-3 flex-1 max-w-lg">
+                  <div className={`relative flex-1 transition-all ${
+                    isSearching
+                      ? 'border-2 border-[#193946] bg-[#193946]/15 ring-2 ring-[#193946]/25 shadow-[0_0_14px_rgba(25,57,70,0.22)]'
+                      : 'border border-[#efbc9d] bg-surface hover:border-[#193946]/50 focus-within:border-[#193946] focus-within:shadow-[0_0_0_2px_rgba(25,57,70,0.12)]'
+                  }`}>
+                        <span className={`material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] transition-colors ${
+                          isSearching ? 'text-[#193946] font-bold' : 'text-[#556575]'
+                        }`}>
+                          search
+                        </span>
+                        <input
+                          type="text"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          placeholder="Search by username, name, or UUID..."
+                          className={`w-full bg-transparent px-3 py-2 pl-9 pr-8 text-xs outline-none transition-colors ${
+                            isSearching
+                              ? 'text-[#193946] font-bold placeholder:text-[#556575]/60'
+                              : 'text-on-surface placeholder:text-secondary/60'
+                          }`}
+                        />
+                        {isSearching && (
+                          <button
+                            type="button"
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#556575] hover:text-[#193946] transition-colors p-0.5"
+                            title="Clear search"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">close</span>
+                          </button>
+                        )}
+                      </div>
 
-              {/* Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="border-b border-outline-variant bg-surface-container-low font-mono text-[10px] tracking-widest text-secondary">
-                    <tr>
-                      <th className="p-4">USER DETAILS</th>
-                      <th className="p-4">ROLE</th>
-                      <th className="p-4">USER ID (UUID)</th>
-                      <th className="p-4">JOINED DATE</th>
-                      <th className="p-4 text-right">ACTION</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-outline-variant">
-                    {filteredUsers.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="p-8 text-center text-secondary">
-                          {searchQuery ? 'No accounts matched your search query.' : 'No registered users found.'}
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredUsers.map((account) => {
-                        const isAdminAccount = account.role === 'admin';
-                        return (
-                          <tr key={account.id} className="hover:bg-surface-container-low/50 transition-colors">
-                            <td className="p-4">
-                              <div className="font-medium text-on-surface flex items-center gap-2">
-                                <span className="material-symbols-outlined text-[18px] text-primary">
-                                  {isAdminAccount ? 'shield_person' : 'person'}
-                                </span>
-                                <span>{account.full_name || account.username}</span>
-                              </div>
-                              <div className="mt-0.5 font-mono text-[11px] text-secondary">
-                                @{account.username}
-                              </div>
-                            </td>
-                            <td className="p-4">
-                              <span
-                                className={`inline-flex items-center gap-1 px-2.5 py-1 font-mono text-[10px] font-bold tracking-wider ${
-                                  isAdminAccount
-                                    ? 'border border-primary/60 bg-primary/10 text-primary'
-                                    : 'border border-outline-variant bg-surface-container text-secondary'
-                                }`}
-                              >
-                                {isAdminAccount && <span className="material-symbols-outlined text-[12px]">security</span>}
-                                {account.role.toUpperCase()}
-                              </span>
-                            </td>
-                            <td className="p-4 font-mono text-[11px] text-secondary select-all">
-                              {account.id}
-                            </td>
-                            <td className="p-4 font-mono text-[11px] text-secondary">
-                              {new Date(account.created_at).toLocaleString('en-IN', {
-                                dateStyle: 'medium',
-                                timeStyle: 'short',
-                              })}
-                            </td>
-                            <td className="p-4 text-right">
-                              {isAdminAccount ? (
-                                <span className="inline-flex items-center gap-1 font-mono text-[10px] tracking-widest text-secondary/60">
-                                  <span className="material-symbols-outlined text-[14px]">lock</span>
-                                  PROTECTED
-                                </span>
+                      {isSearching && (
+                        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-[#193946] text-white font-mono text-[10px] font-bold uppercase tracking-wider shadow-sm shrink-0">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#f5751c] animate-pulse" />
+                          <span>{filteredUsers.length} {filteredUsers.length === 1 ? 'MATCH' : 'MATCHES'}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                      <button
+                        onClick={handleRefresh}
+                        disabled={loading}
+                        className="inline-flex items-center gap-1.5 border border-[#193946]/30 bg-surface px-3 py-2 font-mono text-[10px] font-bold tracking-widest text-[#193946] hover:bg-[#193946]/10 hover:border-[#193946] transition-colors disabled:opacity-50"
+                      >
+                        <span className={`material-symbols-outlined text-[16px] ${loading ? 'animate-spin' : ''}`}>
+                          refresh
+                        </span>
+                        REFRESH
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Active Search Results Banner */}
+                  {isSearching && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 bg-[#193946] text-white px-4 py-2.5 font-mono text-[11px] tracking-wider border-b border-[#193946] shadow-inner">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[16px] text-[#fca26e]">filter_alt</span>
+                        <span>
+                          SEARCH RESULTS FOR <span className="font-bold text-[#fca26e]">&ldquo;{searchQuery}&rdquo;</span>
+                        </span>
+                        <span className="ml-1.5 bg-[#556575] px-2 py-0.5 text-[10px] font-bold rounded-sm text-white">
+                          {filteredUsers.length} {filteredUsers.length === 1 ? 'MATCH' : 'MATCHES'}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="text-[10px] text-[#efbc9d] hover:text-[#fca26e] uppercase tracking-widest font-bold underline transition-colors"
+                      >
+                        Clear Search
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="border-b-2 border-[#193946]/30 bg-[#193946]/10 font-mono text-[10px] tracking-widest text-[#193946] font-black">
+                        <tr>
+                          <th className="p-4">USER DETAILS</th>
+                          <th className="p-4">ROLE</th>
+                          <th className="p-4">USER ID (UUID)</th>
+                          <th className="p-4">JOINED DATE</th>
+                          <th className="p-4 text-right">ACTION</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#efbc9d]/40">
+                        {filteredUsers.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="p-10 text-center text-[#556575]">
+                              {isSearching ? (
+                                <div className="flex flex-col items-center justify-center gap-2">
+                                  <span className="material-symbols-outlined text-3xl text-[#193946]/60">search_off</span>
+                                  <div className="font-mono text-xs font-bold text-[#193946]">NO ACCOUNTS MATCHED &ldquo;{searchQuery}&rdquo;</div>
+                                  <button
+                                    onClick={() => setSearchQuery('')}
+                                    className="text-[11px] font-mono text-[#f5751c] hover:underline uppercase tracking-wider font-bold mt-1"
+                                  >
+                                    Clear search query
+                                  </button>
+                                </div>
                               ) : (
-                                <button
-                                  disabled={loading}
-                                  onClick={() => setDeletingUser(account)}
-                                  className="inline-flex items-center gap-1 border border-error/50 bg-error/10 px-3 py-1.5 font-mono text-[10px] font-bold tracking-widest text-error transition-colors hover:bg-error hover:text-on-error disabled:opacity-50"
-                                >
-                                  <span className="material-symbols-outlined text-[14px]">delete</span>
-                                  DELETE USER
-                                </button>
+                                'No registered users found.'
                               )}
                             </td>
                           </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                        ) : (
+                          filteredUsers.map((account) => {
+                            const isAdminAccount = account.role === 'admin';
+                            return (
+                              <tr
+                                key={account.id}
+                                className={`transition-colors ${
+                                  isSearching
+                                    ? 'border-l-[4px] border-l-[#193946] bg-[#193946]/[0.02] hover:bg-[#193946]/[0.07]'
+                                    : 'hover:bg-[#193946]/[0.03]'
+                                }`}
+                              >
+                                <td className="p-4">
+                                  <div className="font-medium text-on-surface flex items-center gap-2">
+                                    <span className={`material-symbols-outlined text-[18px] ${isAdminAccount ? 'text-[#f5751c]' : 'text-[#193946]'}`}>
+                                      {isAdminAccount ? 'shield_person' : 'person'}
+                                    </span>
+                                    <span className="font-bold text-[#193946]">{account.full_name || account.username}</span>
+                                  </div>
+                                  <div className="mt-0.5 font-mono text-[11px] text-[#556575]">
+                                    @{account.username}
+                                  </div>
+                                </td>
+                                <td className="p-4">
+                                  <span
+                                    className={`inline-flex items-center gap-1 px-2.5 py-1 font-mono text-[10px] font-bold tracking-wider ${
+                                      isAdminAccount
+                                        ? 'border border-[#f5751c]/60 bg-[#f5751c]/15 text-[#f5751c]'
+                                        : 'border border-[#193946]/30 bg-[#193946]/10 text-[#193946]'
+                                    }`}
+                                  >
+                                    {isAdminAccount && <span className="material-symbols-outlined text-[12px]">security</span>}
+                                    {account.role.toUpperCase()}
+                                  </span>
+                                </td>
+                                <td className="p-4 font-mono text-[11px] text-[#556575] select-all">
+                                  {account.id}
+                                </td>
+                                <td className="p-4 font-mono text-[11px] text-[#556575]">
+                                  {new Date(account.created_at).toLocaleString('en-IN', {
+                                    dateStyle: 'medium',
+                                    timeStyle: 'short',
+                                  })}
+                                </td>
+                                <td className="p-4 text-right">
+                                  {isAdminAccount ? (
+                                    <span className="inline-flex items-center gap-1 font-mono text-[10px] tracking-widest text-[#f5751c]/80 border border-[#f5751c]/30 bg-[#f5751c]/5 px-2.5 py-1">
+                                      <span className="material-symbols-outlined text-[14px]">lock</span>
+                                      PROTECTED
+                                    </span>
+                                  ) : (
+                                    <button
+                                      disabled={loading}
+                                      onClick={() => setDeletingUser(account)}
+                                      className="inline-flex items-center gap-1 border border-error/50 bg-error/10 px-3 py-1.5 font-mono text-[10px] font-bold tracking-widest text-error transition-colors hover:bg-error hover:text-on-error disabled:opacity-50 cursor-pointer"
+                                    >
+                                      <span className="material-symbols-outlined text-[14px]">delete</span>
+                                      DELETE USER
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
           </section>
         )}
 

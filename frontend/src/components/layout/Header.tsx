@@ -31,9 +31,16 @@ export function Header() {
   }, [hotspots]);
 
   const handleSignOut = () => {
+    setShowNotifications(false);
     clearVertexUser();
     window.location.assign('/');
   };
+
+  useEffect(() => {
+    if (!user) {
+      setShowNotifications(false);
+    }
+  }, [user]);
 
   /*
    * =========================================================
@@ -224,27 +231,6 @@ export function Header() {
               <span className="absolute bottom-0 left-1 right-1 h-[2px] bg-[#f5751c] rounded-full" />
             )}
           </Link>
-
-          {authReady && user?.role === 'admin' && (
-            <Link
-              href="/admin"
-              className={`
-                relative h-full px-2 flex items-center justify-center gap-1
-                font-mono-label text-[10px] tracking-widest transition-colors
-                ${
-                  pathname?.startsWith('/admin')
-                    ? 'text-primary font-bold bg-primary/10'
-                    : 'text-primary/90 hover:text-primary hover:bg-primary/10'
-                }
-              `}
-            >
-              <span className="material-symbols-outlined text-[13px]">admin_panel_settings</span>
-              ADMIN
-              {pathname?.startsWith('/admin') && (
-                <span className="absolute bottom-0 left-1 right-1 h-[2px] bg-primary rounded-full" />
-              )}
-            </Link>
-          )}
         </nav>
       </div>
 
@@ -313,20 +299,33 @@ export function Header() {
           border-outline-variant
         "
       >
-        <div className="flex items-center h-full min-w-0 flex-1 overflow-hidden">
+        <div className={`flex items-center h-full min-w-0 flex-1 overflow-hidden ${!user ? 'justify-end' : ''}`}>
           {authReady && (user ? (
             <>
-              <div className="flex h-full max-w-[140px] items-center gap-1.5 border-r border-outline-variant px-3 shrink-0">
-                <span className="material-symbols-outlined text-[17px] text-primary">
-                  {user.role === 'admin' ? 'shield_person' : 'verified_user'}
-                </span>
-                <span className="truncate font-mono text-[10px] font-bold tracking-wider text-on-surface">{user.username}</span>
-                {user.role === 'admin' && (
+              {user.role === 'admin' ? (
+                <Link
+                  href="/admin"
+                  className="flex h-full max-w-[150px] items-center gap-1.5 border-r border-outline-variant px-3 shrink-0 hover:bg-primary/10 transition-colors group"
+                  title="Open Admin User Management Console"
+                >
+                  <span className="material-symbols-outlined text-[17px] text-primary">
+                    shield_person
+                  </span>
+                  <span className="truncate font-mono text-[10px] font-bold tracking-wider text-on-surface group-hover:text-primary transition-colors">
+                    {user.username}
+                  </span>
                   <span className="border border-primary bg-primary/20 px-1 py-0.2 font-mono text-[8px] font-bold tracking-widest text-primary">
                     ADMIN
                   </span>
-                )}
-              </div>
+                </Link>
+              ) : (
+                <div className="flex h-full max-w-[140px] items-center gap-1.5 border-r border-outline-variant px-3 shrink-0">
+                  <span className="material-symbols-outlined text-[17px] text-primary">
+                    verified_user
+                  </span>
+                  <span className="truncate font-mono text-[10px] font-bold tracking-wider text-on-surface">{user.username}</span>
+                </div>
+              )}
               <button onClick={handleSignOut} className="h-full flex items-center gap-1 px-3 font-mono-label text-[10px] tracking-widest text-secondary transition-colors hover:bg-surface-container-high hover:text-primary shrink-0" title="Sign out">
                 <span className="material-symbols-outlined text-[16px]">logout</span>
                 <span className="hidden sm:inline">SIGN OUT</span>
@@ -334,46 +333,17 @@ export function Header() {
             </>
           ) : (
             <>
-              <Link href="/login?mode=admin" className="h-full flex items-center gap-1 border-r border-outline-variant px-2.5 font-mono-label text-[10px] font-bold tracking-widest text-primary transition-colors hover:bg-primary/10 shrink-0" title="Admin Portal Sign In">
-                <span className="material-symbols-outlined text-[15px]">shield_person</span>ADMIN
-              </Link>
-              <Link href="/login" className="h-full flex items-center justify-center px-2.5 font-mono-label text-[10px] tracking-widest text-secondary transition-colors hover:bg-surface-container-high hover:text-primary shrink-0">SIGN IN</Link>
-              <Link href="/signup" className="h-full flex items-center justify-center bg-primary px-2.5 font-mono-label text-[10px] font-bold tracking-widest text-on-primary transition-colors hover:bg-primary-container hover:text-on-primary-container shrink-0">REGISTER</Link>
+              <Link href="/login" className="h-full flex items-center justify-center px-3 font-mono-label text-[10px] tracking-widest text-secondary transition-colors hover:bg-surface-container-high hover:text-primary shrink-0">SIGN IN</Link>
+              <Link href="/signup" className="h-full flex items-center justify-center bg-primary px-3 font-mono-label text-[10px] font-bold tracking-widest text-on-primary transition-colors hover:bg-primary-container hover:text-on-primary-container shrink-0">REGISTER</Link>
             </>
           ))}
         </div>
 
-        <div className="flex items-center h-full shrink-0">
-          <button
-            onClick={() => setShowSettings(true)}
-            title="Settings"
-            className="
-              h-full
-              w-[36px]
-              flex
-              items-center
-              justify-center
-              text-primary
-              hover:bg-surface-container-high
-              transition-colors
-              cursor-pointer
-            "
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              settings
-            </span>
-          </button>
-
-          {/* Notifications */}
-          <div className="relative h-full flex items-center">
+        {user && (
+          <div className="flex items-center h-full shrink-0">
             <button
-              data-notification-bell="true"
-              onClick={() => setShowNotifications((prev) => !prev)}
-              title={
-                criticalNotificationsEnabled
-                  ? `${criticalHotspots.length} Critical Threat(s) Monitored`
-                  : 'Critical Notifications Muted'
-              }
+              onClick={() => setShowSettings(true)}
+              title="Settings"
               className="
                 h-full
                 w-[36px]
@@ -384,52 +354,80 @@ export function Header() {
                 hover:bg-surface-container-high
                 transition-colors
                 cursor-pointer
-                relative
               "
             >
               <span className="material-symbols-outlined text-[18px]">
-                {criticalNotificationsEnabled ? 'notifications' : 'notifications_off'}
+                settings
               </span>
-
-              {criticalNotificationsEnabled && criticalHotspots.length > 0 && (
-                <span className="absolute top-1.5 right-1.5 flex h-3.5 min-w-[14px] px-1 items-center justify-center rounded-full bg-red-600 text-white text-[8px] font-mono font-black shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-pulse pointer-events-none">
-                  {criticalHotspots.length}
-                </span>
-              )}
             </button>
 
-            {showNotifications && (
-              <NotificationsPopover
-                isOpen={showNotifications}
-                onClose={() => setShowNotifications(false)}
-                onOpenSettings={() => {
-                  setShowNotifications(false);
-                  setShowSettings(true);
-                }}
-              />
-            )}
-          </div>
+            {/* Notifications (only shown when signed in) */}
+            <div className="relative h-full flex items-center">
+              <button
+                data-notification-bell="true"
+                onClick={() => setShowNotifications((prev) => !prev)}
+                title={
+                  criticalNotificationsEnabled
+                    ? `${criticalHotspots.length} Critical Threat(s) Monitored`
+                    : 'Critical Notifications Muted'
+                }
+                className="
+                  h-full
+                  w-[36px]
+                  flex
+                  items-center
+                  justify-center
+                  text-primary
+                  hover:bg-surface-container-high
+                  transition-colors
+                  cursor-pointer
+                  relative
+                "
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  {criticalNotificationsEnabled ? 'notifications' : 'notifications_off'}
+                </span>
 
-          <button
-            onClick={() => setShowAccount(true)}
-            title="Account"
-            className="
-              h-full
-              w-[36px]
-              flex
-              items-center
-              justify-center
-              text-primary
-              hover:bg-surface-container-high
-              transition-colors
-              cursor-pointer
-            "
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              account_circle
-            </span>
-          </button>
-        </div>
+                {criticalNotificationsEnabled && criticalHotspots.length > 0 && (
+                  <span className="absolute top-1.5 right-1.5 flex h-3.5 min-w-[14px] px-1 items-center justify-center rounded-full bg-red-600 text-white text-[8px] font-mono font-black shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-pulse pointer-events-none">
+                    {criticalHotspots.length}
+                  </span>
+                )}
+              </button>
+
+              {showNotifications && (
+                <NotificationsPopover
+                  isOpen={showNotifications}
+                  onClose={() => setShowNotifications(false)}
+                  onOpenSettings={() => {
+                    setShowNotifications(false);
+                    setShowSettings(true);
+                  }}
+                />
+              )}
+            </div>
+
+            <button
+              onClick={() => setShowAccount(true)}
+              title="Account"
+              className="
+                h-full
+                w-[36px]
+                flex
+                items-center
+                justify-center
+                text-primary
+                hover:bg-surface-container-high
+                transition-colors
+                cursor-pointer
+              "
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                account_circle
+              </span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ===================================================
