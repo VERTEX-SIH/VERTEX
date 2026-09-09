@@ -368,8 +368,8 @@ export default function AnalyticsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-surface-dim text-on-surface flex flex-col">
-<div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 min-h-0 bg-surface-dim text-on-surface flex flex-col overflow-y-auto">
+        <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center">
             <span className="material-symbols-outlined text-4xl text-primary animate-spin mb-4">
               sync
@@ -396,8 +396,8 @@ export default function AnalyticsPage() {
     classifiedHotspots.length === 0
   ) {
     return (
-      <div className="min-h-screen bg-surface-dim text-on-surface flex flex-col">
-<div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 min-h-0 bg-surface-dim text-on-surface flex flex-col overflow-y-auto">
+        <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center bg-surface border border-error p-8 max-w-md text-center">
             <span className="material-symbols-outlined text-4xl text-error mb-4">
               database
@@ -423,23 +423,13 @@ export default function AnalyticsPage() {
    */
 
   return (
-    <div className="bg-surface-dim min-h-screen text-on-surface overflow-auto">
-<div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="bg-surface-dim flex-1 min-h-0 text-on-surface overflow-y-auto">
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
 
         
 {/* =================================================
             PAGE HEADER
             ================================================= */}
-
-        <div className="flex items-center justify-end mb-2">
-          <button
-            type="button"
-            onClick={() => router.push('/')}
-            className="font-mono-label text-[10px] text-secondary hover:text-primary uppercase tracking-widest px-3 py-1 border border-outline-variant hover:bg-surface-container transition-colors"
-          >
-            HOME
-          </button>
-        </div>
 
         <div className="border-b border-outline-variant pb-4 mb-6">
           <h1 className="font-headline-sm text-2xl text-primary uppercase tracking-widest">

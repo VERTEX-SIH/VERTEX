@@ -61,12 +61,17 @@ export function MapView({
 
   const onMove = useCallback((event: ViewStateChangeEvent) => setViewState(event.viewState), []);
 
+  const selectedLongitude = Number(selectedHotspot?.hotspot?.longitude);
+  const selectedLatitude = Number(selectedHotspot?.hotspot?.latitude);
+  const hasValidSelectedCoordinates = Number.isFinite(selectedLongitude) && Number.isFinite(selectedLatitude);
+  const selectedIdStr = String(selectedHotspot?.id ?? '');
+  const selectedIdRaw = selectedIdStr.replace(/^vtx-/i, '');
+
   const geojsonData = useMemo(() => ({
     type: 'FeatureCollection' as const,
     features: visibleHotspots.map((hotspot) => {
       const type = (hotspot?.classification?.classification || '') as ClassificationType;
       const isPending = !type || type === ClassificationType.UNCLASSIFIED;
-      const color = isPending ? '#8a8a8a' : (CLASSIFICATION_COLORS[type] || '#ea580c');
       const riskLevel = String(hotspot?.classification?.risk_level ?? '').toUpperCase();
       const riskScore = Number(hotspot?.classification?.risk_score ?? 0);
       const isHighRisk = riskLevel === 'HIGH' || riskLevel === 'CRITICAL' || riskScore >= 70;
@@ -75,6 +80,27 @@ export function MapView({
       const latitude = Number(hotspot?.hotspot?.latitude);
       if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null;
       const id = String(hotspot.id);
+      const isSelected = Boolean(
+        selectedIdStr && (id === selectedIdStr || id === selectedIdRaw)
+      );
+
+      // Vibrant thermal colors: raw FIRMS observations get crisp amber-orange, classified get specific color
+      let color = '#ea580c';
+      if (!isPending) {
+        if (type === ClassificationType.AGRICULTURAL_BURN) {
+          color = '#eab308';
+        } else if (CLASSIFICATION_COLORS[type]) {
+          color = CLASSIFICATION_COLORS[type];
+        } else if (isHighRisk) {
+          color = '#dc2626';
+        }
+      }
+
+      const radius = isSelected ? 8.5 : isHighRisk ? 7.5 : (isPending ? 5.5 : 6);
+      const strokeWidth = isSelected ? 3 : (isHighRisk ? 2.5 : 1.8);
+      const strokeColor = isSelected ? '#ffffff' : '#18181b';
+      const opacity = 1.0;
+
       return {
         type: 'Feature' as const,
         id,
@@ -85,12 +111,17 @@ export function MapView({
           isPending,
           isHighRisk,
           isPriority,
+          isSelected,
           color,
+          radius,
+          strokeWidth,
+          strokeColor,
+          opacity,
           frp: Number(hotspot?.hotspot?.frp ?? 0),
         },
       };
     }).filter((feature): feature is NonNullable<typeof feature> => feature !== null),
-  }), [visibleHotspots]);
+  }), [visibleHotspots, selectedIdStr, selectedIdRaw]);
 
   const dataBounds = useMemo(() => {
     if (!visibleHotspots.length) return null;
@@ -230,12 +261,6 @@ export function MapView({
     };
   }, [mapStyle]);
 
-  const selectedLongitude = Number(selectedHotspot?.hotspot?.longitude);
-  const selectedLatitude = Number(selectedHotspot?.hotspot?.latitude);
-  const hasValidSelectedCoordinates = Number.isFinite(selectedLongitude) && Number.isFinite(selectedLatitude);
-  const selectedIdStr = String(selectedHotspot?.id ?? '');
-  const selectedIdRaw = selectedIdStr.replace(/^vtx-/i, '');
-
   if (!mounted) return null;
 
   return (
@@ -243,6 +268,8 @@ export function MapView({
       <Map
         ref={mapRef}
         {...viewState}
+        renderWorldCopies={false}
+        minZoom={2.5}
         onMove={onMove}
         onMoveEnd={onMoveEnd}
         onError={(e) => {
@@ -267,52 +294,11 @@ export function MapView({
             id="unclustered-point"
             type="circle"
             paint={{
-              'circle-color': [
-                'case',
-                ['get', 'isPending'],
-                '#8a8a8a',
-                [
-                  'match',
-                  ['get', 'type'],
-                  ClassificationType.INDUSTRIAL_FIRE,
-                  '#dc2626',
-                  ClassificationType.PERSISTENT_INDUSTRIAL_SOURCE,
-                  '#ea580c',
-                  ClassificationType.GAS_FLARE,
-                  '#f59e0b',
-                  ClassificationType.WILDFIRE_FOREST_FIRE,
-                  '#16a34a',
-                  ClassificationType.AGRICULTURAL_BURN,
-                  '#ca8a04',
-                  ClassificationType.MINING_THERMAL_ACTIVITY,
-                  '#7c3aed',
-                  ClassificationType.OTHER_THERMAL_ANOMALY,
-                  '#6366f1',
-                  ClassificationType.UNKNOWN_UNCERTAIN,
-                  '#6b7280',
-                  '#6b7280',
-                ],
-              ],
-              'circle-radius': [
-                'case',
-                ['any', ['==', ['get', 'id'], selectedIdStr], ['==', ['get', 'id'], selectedIdRaw]],
-                7,
-                ['get', 'isHighRisk'],
-                6.5,
-                ['get', 'isPending'],
-                5,
-                6,
-              ],
-              'circle-opacity': ['case', ['get', 'isPending'], 0.65, 1.0],
-              'circle-stroke-width': [
-                'case',
-                ['any', ['==', ['get', 'id'], selectedIdStr], ['==', ['get', 'id'], selectedIdRaw]],
-                2,
-                ['get', 'isHighRisk'],
-                2,
-                1.5,
-              ],
-              'circle-stroke-color': ['case', ['get', 'isPending'], '#444444', '#111111'],
+              'circle-color': ['get', 'color'],
+              'circle-radius': ['get', 'radius'],
+              'circle-opacity': ['get', 'opacity'],
+              'circle-stroke-width': ['get', 'strokeWidth'],
+              'circle-stroke-color': ['get', 'strokeColor'],
             }}
           />
         </Source>

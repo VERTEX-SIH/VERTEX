@@ -55,6 +55,20 @@ async def get_classified_hotspots(
             
             primary_osm = dict(primary_class.get("osm_context") or {}) if primary_class else {}
             
+            if primary_class and primary_class.get("classification"):
+                from services.classifier import calculate_risk_score, ClassificationEnum
+                frp = float(r.get("frp") or 0.0)
+                conf = str(r.get("confidence") or "n")
+                dist = primary_osm.get("nearest_facility_distance")
+                cls_val = primary_class.get("classification")
+                try:
+                    enum_val = ClassificationEnum(cls_val)
+                    score, level = calculate_risk_score(enum_val, frp, dist, conf)
+                    primary_class["risk_score"] = score
+                    primary_class["risk_level"] = level
+                except Exception:
+                    pass
+            
             if classification and primary_class.get("classification") != classification:
                 continue
             if risk_level and primary_class.get("risk_level") != risk_level:

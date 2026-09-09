@@ -115,7 +115,23 @@ export default function HomePage() {
       </section>
 
       <section className="border-y border-outline-variant bg-surface"><div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 px-6 py-10 sm:flex-row sm:items-center lg:px-10"><div><p className="font-mono text-[10px] font-bold tracking-[0.2em] text-primary">READY TO INVESTIGATE</p><h2 className="mt-2 font-headline-sm text-2xl text-on-surface">See the current thermal picture.</h2></div><div className="flex flex-wrap gap-3">{user?.role === 'admin' && <Link href="/admin" className="inline-flex shrink-0 items-center gap-2 border border-primary px-5 py-3 font-mono text-[11px] font-bold tracking-[0.12em] text-primary transition-colors hover:bg-primary hover:text-on-primary">MANAGE USERS<span className="material-symbols-outlined text-[18px]">admin_panel_settings</span></Link>}<Link href="/map" className="inline-flex shrink-0 items-center gap-2 border border-outline-variant px-5 py-3 font-mono text-[11px] font-bold tracking-[0.12em] text-on-surface transition-colors hover:border-primary hover:text-primary">OPEN LIVE MAP<span className="material-symbols-outlined text-[18px]">map</span></Link><Link href="/analytics" className="inline-flex shrink-0 items-center gap-2 border border-primary bg-primary px-5 py-3 font-mono text-[11px] font-bold tracking-[0.12em] text-on-primary transition-colors hover:bg-primary-container hover:text-on-primary-container">OPEN ANALYTICS<span className="material-symbols-outlined text-[18px]">monitoring</span></Link></div></div></section>
-      <footer className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-6 font-mono text-[9px] tracking-[0.14em] text-secondary sm:flex-row sm:items-center sm:justify-between lg:px-10"><span>VERTEX / THERMAL INTELLIGENCE PLATFORM</span><div className="flex gap-5"><Link href="/login" className="hover:text-primary">SIGN IN</Link><Link href="/signup" className="hover:text-primary">CREATE ACCOUNT</Link></div></footer>
+      <footer className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-6 font-mono text-[9px] tracking-[0.14em] text-secondary sm:flex-row sm:items-center sm:justify-between lg:px-10">
+        <span>VERTEX / THERMAL INTELLIGENCE PLATFORM</span>
+        <div className="flex gap-5">
+          {user ? (
+            <>
+              <Link href="/map" className="hover:text-primary transition-colors">LIVE MAP</Link>
+              <Link href="/analytics" className="hover:text-primary transition-colors">ANALYTICS</Link>
+              <span className="text-secondary/70">SIGNED IN AS @{user.username}</span>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="hover:text-primary">SIGN IN</Link>
+              <Link href="/signup" className="hover:text-primary">CREATE ACCOUNT</Link>
+            </>
+          )}
+        </div>
+      </footer>
     </main>
   );
 }

@@ -39,9 +39,9 @@ export function Sidebar({
   } = useGlobalState();
 
   const sourceHotspots =
-    globalHotspots && globalHotspots.length > 0
-      ? globalHotspots
-      : hotspots;
+    hotspots && hotspots.length > 0
+      ? hotspots
+      : (globalHotspots || []);
 
   const [activeTab, setActiveTab] = useState<
     'STREAM' | 'FILTER' | 'LAYERS'
@@ -177,15 +177,15 @@ export function Sidebar({
   };
 
   return (
-    <aside className="bg-surface-container-low w-[300px] h-full flex flex-col border-r border-outline-variant fixed left-0 top-[40px] bottom-[32px] z-40 overflow-hidden">
+    <aside className="bg-surface-container-low w-[300px] h-[calc(100vh-72px)] flex flex-col border-r border-outline-variant fixed left-0 top-[40px] bottom-[32px] z-40 overflow-hidden">
 
       {/* HEADER */}
       <div className="p-2 border-b border-outline-variant shrink-0">
-        <div className="font-headline-sm text-[14px] text-primary">
+        <div className="font-headline-sm text-[14px] text-[#193946] font-black tracking-wide">
           ANOMALY STREAM
         </div>
 
-        <div className="font-body-sm text-[11px] text-secondary mt-1 tracking-widest uppercase">
+        <div className="font-body-sm text-[11px] text-[#556575] mt-1 tracking-widest uppercase">
           REAL-TIME THERMAL EVENTS
         </div>
       </div>
@@ -195,10 +195,10 @@ export function Sidebar({
 
         <button
           onClick={() => setActiveTab('STREAM')}
-          className={`flex-1 py-2 flex flex-col items-center transition-colors border-b-2 ${
+          className={`flex-1 py-2 flex flex-col items-center transition-all border-b-[3px] ${
             activeTab === 'STREAM'
-              ? 'border-primary bg-surface-container-highest text-on-surface'
-              : 'border-transparent text-secondary hover:bg-surface-container-high'
+              ? 'border-[#f5751c] bg-[#f5751c]/10 text-[#f5751c] font-bold shadow-[inset_0_-2px_6px_rgba(245,117,28,0.12)]'
+              : 'border-transparent text-[#556575] hover:text-[#f5751c] hover:bg-[#f5751c]/5'
           }`}
         >
           <span className="material-symbols-outlined text-[16px] mb-1 font-mono">
@@ -212,10 +212,10 @@ export function Sidebar({
 
         <button
           onClick={() => setActiveTab('FILTER')}
-          className={`flex-1 py-2 flex flex-col items-center transition-colors border-b-2 relative ${
+          className={`flex-1 py-2 flex flex-col items-center transition-all border-b-[3px] relative ${
             activeTab === 'FILTER'
-              ? 'border-primary bg-surface-container-highest text-on-surface'
-              : 'border-transparent text-secondary hover:bg-surface-container-high'
+              ? 'border-[#556575] bg-[#556575]/10 text-[#193946] font-bold shadow-[inset_0_-2px_6px_rgba(85,101,117,0.12)]'
+              : 'border-transparent text-[#556575] hover:text-[#193946] hover:bg-[#556575]/5'
           }`}
         >
           <span className="material-symbols-outlined text-[16px] mb-1 font-mono">
@@ -225,7 +225,7 @@ export function Sidebar({
           <span className="font-mono-label text-[10px] tracking-widest flex items-center gap-1">
             FILTER
             {activeFilterCount > 0 && (
-              <span className="w-4 h-4 rounded-full bg-primary text-on-primary text-[9px] font-bold flex items-center justify-center">
+              <span className="w-4 h-4 rounded-full bg-[#f5751c] text-white text-[9px] font-bold flex items-center justify-center">
                 {activeFilterCount}
               </span>
             )}
@@ -234,10 +234,10 @@ export function Sidebar({
 
         <button
           onClick={() => setActiveTab('LAYERS')}
-          className={`flex-1 py-2 flex flex-col items-center transition-colors border-b-2 ${
+          className={`flex-1 py-2 flex flex-col items-center transition-all border-b-[3px] ${
             activeTab === 'LAYERS'
-              ? 'border-primary bg-surface-container-highest text-on-surface'
-              : 'border-transparent text-secondary hover:bg-surface-container-high'
+              ? 'border-[#193946] bg-[#193946]/10 text-[#193946] font-bold shadow-[inset_0_-2px_6px_rgba(25,57,70,0.12)]'
+              : 'border-transparent text-[#556575] hover:text-[#193946] hover:bg-[#193946]/5'
           }`}
         >
           <span className="material-symbols-outlined text-[16px] mb-1 font-mono">
@@ -252,7 +252,7 @@ export function Sidebar({
       </div>
 
       {/* CONTENT */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pb-12">
 
         {/* ================================================= */}
         {/* STREAM */}
@@ -265,10 +265,10 @@ export function Sidebar({
 
               <button
                 onClick={() => setStreamFilter('ALL')}
-                className={`flex-1 py-1.5 text-center font-mono-label text-[10px] tracking-widest uppercase transition-colors ${
+                className={`flex-1 py-1.5 text-center font-mono-label text-[10px] tracking-widest uppercase transition-all border-b-2 ${
                   streamFilter === 'ALL'
-                    ? 'bg-surface-container-highest text-on-surface border-b-2 border-primary'
-                    : 'text-secondary hover:bg-surface-container-high'
+                    ? 'border-[#193946] bg-[#193946]/10 text-[#193946] font-bold'
+                    : 'border-transparent text-[#797983] hover:text-[#193946] hover:bg-[#193946]/5'
                 }`}
               >
                 ALL
@@ -276,10 +276,10 @@ export function Sidebar({
 
               <button
                 onClick={() => setStreamFilter('CLASSIFIED')}
-                className={`flex-1 py-1.5 text-center font-mono-label text-[10px] tracking-widest uppercase transition-colors ${
+                className={`flex-1 py-1.5 text-center font-mono-label text-[10px] tracking-widest uppercase transition-all border-b-2 ${
                   streamFilter === 'CLASSIFIED'
-                    ? 'bg-surface-container-highest text-on-surface border-b-2 border-primary'
-                    : 'text-secondary hover:bg-surface-container-high'
+                    ? 'border-[#f5751c] bg-[#f5751c]/10 text-[#f5751c] font-bold'
+                    : 'border-transparent text-[#797983] hover:text-[#f5751c] hover:bg-[#f5751c]/5'
                 }`}
               >
                 CLASSIFIED
@@ -287,10 +287,10 @@ export function Sidebar({
 
               <button
                 onClick={() => setStreamFilter('PENDING')}
-                className={`flex-1 py-1.5 text-center font-mono-label text-[10px] tracking-widest uppercase transition-colors ${
+                className={`flex-1 py-1.5 text-center font-mono-label text-[10px] tracking-widest uppercase transition-all border-b-2 ${
                   streamFilter === 'PENDING'
-                    ? 'bg-surface-container-highest text-on-surface border-b-2 border-primary'
-                    : 'text-secondary hover:bg-surface-container-high'
+                    ? 'border-[#fca26e] bg-[#fca26e]/15 text-[#c95914] font-bold'
+                    : 'border-transparent text-[#797983] hover:text-[#c95914] hover:bg-[#fca26e]/5'
                 }`}
               >
                 PENDING
@@ -299,10 +299,12 @@ export function Sidebar({
             </div>
 
             {/* HOTSPOT LIST */}
-            <div className="px-2 py-1 border-b border-outline-variant bg-surface-container-lowest shrink-0">
-              <div className="font-mono text-[9px] text-secondary uppercase tracking-widest">
+            <div className="px-2.5 py-1.5 border-b border-[#efbc9d]/40 bg-[#193946]/5 shrink-0 flex items-center justify-between">
+              <div className="font-mono text-[10px] text-[#193946] font-black uppercase tracking-widest flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#f5751c]" />
                 {sortedHotspots.length} PRIORITY EVENTS
               </div>
+              <span className="font-mono text-[9px] text-[#556575] font-bold uppercase">LIVE RADAR</span>
             </div>
             {sortedHotspots.length > 0 ? (
 
@@ -332,20 +334,22 @@ export function Sidebar({
                         h.id || `hotspot-${i}`
                       }
                       onClick={() => onSelect?.(h)}
-                      className={`px-2 py-3 border-b border-outline-variant cursor-pointer hover:bg-surface-container-highest transition-colors flex items-start gap-3 ${
+                      className={`px-2.5 py-3 border-b border-[#efbc9d]/30 cursor-pointer transition-all flex items-start gap-3 ${
                         selectedId === h.id
-                          ? 'border-l-2 border-l-primary bg-surface-container-highest'
-                          : 'border-l-2 border-l-transparent'
+                          ? 'border-l-[3.5px] border-l-[#f5751c] bg-[#193946]/[0.07] shadow-[inset_0_1px_3px_rgba(25,57,70,0.05)]'
+                          : 'border-l-[3.5px] border-l-transparent bg-surface hover:bg-[#193946]/[0.03]'
                       }`}
                     >
 
                       {/* RANK */}
                       <div className="w-6 shrink-0 mt-0.5">
-                        <div className="font-mono text-[12px] font-bold text-primary text-center">
+                        <div className={`font-mono text-[12px] font-black text-center ${
+                          selectedId === h.id ? 'text-[#f5751c]' : 'text-[#193946]'
+                        }`}>
                           {i + 1}
                         </div>
 
-                        <div className="font-mono text-[8px] text-secondary text-center mt-0.5">
+                        <div className="font-mono text-[8px] text-[#556575] text-center mt-0.5 font-bold">
                           PRI
                         </div>
                       </div>
@@ -371,11 +375,13 @@ export function Sidebar({
                         {/* ID + CONFIDENCE */}
                         <div className="flex justify-between items-center mb-1">
 
-                          <span className="font-mono text-[10px] text-on-surface font-bold">
+                          <span className={`font-mono text-[11px] font-black tracking-wide ${
+                            selectedId === h.id ? 'text-[#f5751c]' : 'text-[#193946]'
+                          }`}>
                             VTX-{h.id}
                           </span>
 
-                          <span className="font-mono text-[11px] text-secondary bg-surface-container-high px-1 border border-outline-variant">
+                          <span className="font-mono text-[10px] font-bold text-[#193946] bg-[#193946]/10 px-1.5 py-0.5 rounded border border-[#193946]/20">
                             {isPending
                               ? 'PENDING'
                               : confidence.toFixed(
@@ -386,7 +392,7 @@ export function Sidebar({
                         </div>
 
                         {/* CLASSIFICATION */}
-                        <div className="font-headline-sm text-[13px] text-on-surface uppercase tracking-widest truncate">
+                        <div className="font-headline-sm text-[13px] text-[#193946] font-bold uppercase tracking-wider truncate">
                           {CLASSIFICATION_LABELS[
                             classification as ClassificationType
                           ] ||
@@ -394,8 +400,7 @@ export function Sidebar({
                         </div>
 
                         {/* OSM CONTEXT */}
-                        <div className="font-body-sm text-[11px] text-secondary mt-1 truncate">
-
+                        <div className="font-body-sm text-[11px] text-[#556575] mt-1 truncate">
                           {(() => {
                             if (!context || context.osm_source === 'PENDING' || isPending) {
                               return 'Analyzing area context...';
@@ -413,7 +418,6 @@ export function Sidebar({
 
                             return 'No industrial site nearby';
                           })()}
-
                         </div>
 
                       </div>
@@ -679,10 +683,11 @@ export function Sidebar({
         {activeTab === 'LAYERS' && (
           <div className="p-4 space-y-4">
             <div>
-              <div className="font-mono-label text-[10px] text-secondary mb-3 tracking-widest uppercase">
+              <div className="font-headline-sm text-[12px] text-[#193946] font-black mb-3 tracking-widest uppercase flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-sm bg-[#193946]" />
                 Base Map Imagery & Theme
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {[
                   {
                     id: 'Esri World Imagery (Satellite)',
@@ -692,16 +697,9 @@ export function Sidebar({
                     badge: 'PHOTOGRAPHIC',
                   },
                   {
-                    id: 'Dark Canvas',
-                    name: 'Dark Canvas',
-                    provider: 'Dark OpenStreetMap Canvas',
-                    icon: 'dark_mode',
-                    badge: 'CLEAN DARK',
-                  },
-                  {
                     id: 'Dark Tactical',
                     name: 'Dark Tactical',
-                    provider: 'OpenFreeMap Vector Tiles',
+                    provider: 'Tactical Dark Canvas',
                     icon: 'contrast',
                     badge: 'TACTICAL',
                   },
@@ -716,42 +714,42 @@ export function Sidebar({
                   const isSelected =
                     mapStyle === layer.id ||
                     (layer.id.includes('Satellite') && mapStyle === 'Satellite') ||
-                    (layer.id === 'Dark Canvas' && (mapStyle === 'Carto Dark Matter' || mapStyle === 'Carto Dark' || mapStyle === 'Esri Dark Canvas'));
+                    (layer.id === 'Dark Tactical' && (mapStyle === 'Dark Canvas' || mapStyle === 'OpenFreeMap Dark' || mapStyle === 'Carto Dark Matter'));
 
                   return (
                     <button
                       key={layer.id}
                       type="button"
                       onClick={() => setMapStyle(layer.id)}
-                      className={`w-full text-left p-3 border transition-all flex items-start gap-3 cursor-pointer ${
+                      className={`w-full text-left p-3 border transition-all flex items-start gap-3 cursor-pointer rounded-sm ${
                         isSelected
-                          ? 'border-primary bg-primary/10 shadow-sm'
-                          : 'border-outline-variant bg-surface hover:border-primary/50'
+                          ? 'border-2 border-[#193946] bg-[#193946]/10 shadow-[0_2px_8px_rgba(25,57,70,0.12)]'
+                          : 'border-[#efbc9d]/60 bg-surface hover:border-[#193946]/40 hover:bg-[#193946]/[0.03]'
                       }`}
                     >
                       <span
                         className={`material-symbols-outlined text-[20px] mt-0.5 ${
-                          isSelected ? 'text-primary' : 'text-secondary'
+                          isSelected ? 'text-[#193946]' : 'text-[#556575]'
                         }`}
                       >
                         {layer.icon}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className={`font-mono text-[11px] font-bold uppercase ${
-                            isSelected ? 'text-primary' : 'text-on-surface'
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`font-mono text-[11px] font-black uppercase tracking-wider ${
+                            isSelected ? 'text-[#193946]' : 'text-[#193946]/90'
                           }`}>
                             {layer.name}
                           </span>
-                          <span className={`font-mono text-[8px] px-1.5 py-0.5 border ${
+                          <span className={`font-mono text-[8px] px-1.5 py-0.5 tracking-widest uppercase font-bold rounded-xs ${
                             isSelected
-                              ? 'border-primary/40 bg-primary/20 text-primary'
-                              : 'border-outline-variant bg-surface-container text-secondary'
+                              ? 'bg-[#193946] text-white'
+                              : 'text-[#556575] border border-[#efbc9d] bg-surface-container/60'
                           }`}>
                             {layer.badge}
                           </span>
                         </div>
-                        <div className="font-mono text-[9px] text-secondary mt-0.5 truncate">
+                        <div className="font-mono text-[10px] text-[#556575] mt-1 truncate">
                           {layer.provider}
                         </div>
                       </div>
@@ -761,8 +759,10 @@ export function Sidebar({
               </div>
             </div>
 
-            <div className="pt-3 border-t border-outline-variant text-[10px] text-secondary leading-relaxed font-mono">
-              Base tiles load with caching enabled. Select <strong className="text-primary">Satellite Imagery</strong> for high-resolution aerial context around fire hotspots.
+            <div className="p-3 bg-[#193946]/5 border border-[#efbc9d]/50 text-[11px] text-[#556575] font-mono leading-relaxed space-y-1">
+              <div>
+                Base tiles load with caching enabled. Select <strong className="text-[#193946]">Satellite Imagery</strong> for high-resolution aerial context around fire hotspots.
+              </div>
             </div>
           </div>
         )}

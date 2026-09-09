@@ -9,38 +9,63 @@ from services.gemini_service import classify_with_gemini
 logger = logging.getLogger(__name__)
 
 def calculate_risk_score(classification: ClassificationEnum, frp: float, dist: float, conf: str) -> tuple[float, str]:
+    """
+    Computes a realistic 0-100 composite risk score and categorical risk level
+    (LOW, MODERATE, HIGH, CRITICAL).
+    """
     weights = {
-        ClassificationEnum.INDUSTRIAL_FIRE: 0.9,
-        ClassificationEnum.GAS_FLARE: 0.7,
-        ClassificationEnum.WILDFIRE_FOREST_FIRE: 0.6,
-        ClassificationEnum.PERSISTENT_INDUSTRIAL_SOURCE: 0.4,
-        ClassificationEnum.MINING_THERMAL_ACTIVITY: 0.5,
-        ClassificationEnum.AGRICULTURAL_BURN: 0.3,
-        ClassificationEnum.OTHER_THERMAL_ANOMALY: 0.2,
-        ClassificationEnum.UNKNOWN_UNCERTAIN: 0.1,
-        ClassificationEnum.UNKNOWN: 0.1,
+        ClassificationEnum.INDUSTRIAL_FIRE: 0.85,
+        ClassificationEnum.WILDFIRE_FOREST_FIRE: 0.75,
+        ClassificationEnum.GAS_FLARE: 0.50,
+        ClassificationEnum.MINING_THERMAL_ACTIVITY: 0.45,
+        ClassificationEnum.AGRICULTURAL_BURN: 0.35,
+        ClassificationEnum.PERSISTENT_INDUSTRIAL_SOURCE: 0.20,
+        ClassificationEnum.OTHER_THERMAL_ANOMALY: 0.25,
+        ClassificationEnum.UNKNOWN_UNCERTAIN: 0.20,
+        ClassificationEnum.UNKNOWN: 0.20,
     }
-    
-    type_weight = weights.get(classification, 0.1)
-    frp_norm = min(frp / 500.0, 1.0)
-    
-    dist_norm = 0.0
+    type_weight = weights.get(classification, 0.20)
+
+    # FRP intensity scaling based on VIIRS active fire ranges
+    frp_norm = min(frp / 100.0, 1.0)
+    if frp > 100.0:
+        frp_norm = min(1.0 + (frp - 100.0) / 400.0, 1.25)
+
+    # Proximity hazard contextualization:
+    # - Uncontrolled fire near facilities is an acute danger.
+    # - Persistent industrial source at an industrial plant is routine/contained (low hazard).
+    dist_hazard = 0.0
     if dist is not None and dist > 0:
-        dist_norm = min(1000.0 / dist, 1.0) if dist >= 100 else 1.0
-        
+        proximity_factor = min(1000.0 / dist, 1.0) if dist >= 100 else 1.0
+        if classification in (ClassificationEnum.INDUSTRIAL_FIRE, ClassificationEnum.GAS_FLARE):
+            dist_hazard = proximity_factor * 1.0
+        elif classification == ClassificationEnum.WILDFIRE_FOREST_FIRE:
+            dist_hazard = proximity_factor * 0.5
+        elif classification == ClassificationEnum.PERSISTENT_INDUSTRIAL_SOURCE:
+            dist_hazard = 0.0
+        else:
+            dist_hazard = proximity_factor * 0.3
+
     conf_score = 0.5
     if conf in ('h', 'high', '100'):
         conf_score = 1.0
     elif conf in ('l', 'low', '0'):
         conf_score = 0.2
-        
-    score = (type_weight * 0.4 + frp_norm * 0.3 + dist_norm * 0.2 + conf_score * 0.1) * 100
-    
-    if score >= 80:
+
+    if classification == ClassificationEnum.WILDFIRE_FOREST_FIRE:
+        score = (type_weight * 0.35 + frp_norm * 0.50 + dist_hazard * 0.10 + conf_score * 0.05) * 100
+    elif classification == ClassificationEnum.PERSISTENT_INDUSTRIAL_SOURCE:
+        score = (type_weight * 0.40 + frp_norm * 0.45 + conf_score * 0.15) * 100
+    else:
+        score = (type_weight * 0.35 + frp_norm * 0.35 + dist_hazard * 0.20 + conf_score * 0.10) * 100
+
+    score = min(max(round(score, 1), 0.0), 100.0)
+
+    if score >= 75:
         return score, 'CRITICAL'
-    elif score >= 60:
+    elif score >= 55:
         return score, 'HIGH'
-    elif score >= 40:
+    elif score >= 35:
         return score, 'MODERATE'
     else:
         return score, 'LOW'

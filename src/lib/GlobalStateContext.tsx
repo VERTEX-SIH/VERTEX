@@ -96,6 +96,15 @@ interface GlobalState {
   ) => void;
 
   refreshData: () => Promise<void>;
+
+  autoRefreshInterval: string;
+  setAutoRefreshInterval: (interval: string) => void;
+  minConfidenceDisplay: number;
+  setMinConfidenceDisplay: (val: number) => void;
+  strictRiskFiltering: boolean;
+  setStrictRiskFiltering: (enabled: boolean) => void;
+  criticalNotificationsEnabled: boolean;
+  setCriticalNotificationsEnabled: (enabled: boolean) => void;
 }
 
 
@@ -472,6 +481,46 @@ export function GlobalStateProvider({
 
   /*
    * =======================================================
+   * PLATFORM SETTINGS & CONTROLS
+   * =======================================================
+   */
+
+  const [autoRefreshInterval, setAutoRefreshIntervalState] = useState<string>('30 Minutes');
+  const [minConfidenceDisplay, setMinConfidenceDisplayState] = useState<number>(0.30);
+  const [strictRiskFiltering, setStrictRiskFilteringState] = useState<boolean>(false);
+  const [criticalNotificationsEnabled, setCriticalNotificationsEnabledState] = useState<boolean>(true);
+
+  const savePlatformSettings = (partial: Record<string, any>) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const existing = JSON.parse(localStorage.getItem('vtx_platform_settings') || '{}');
+      localStorage.setItem('vtx_platform_settings', JSON.stringify({ ...existing, ...partial }));
+    } catch {}
+  };
+
+  const setAutoRefreshInterval = (interval: string) => {
+    setAutoRefreshIntervalState(interval);
+    savePlatformSettings({ autoRefreshInterval: interval });
+  };
+
+  const setMinConfidenceDisplay = (val: number) => {
+    setMinConfidenceDisplayState(val);
+    savePlatformSettings({ minConfidenceDisplay: val });
+  };
+
+  const setStrictRiskFiltering = (enabled: boolean) => {
+    setStrictRiskFilteringState(enabled);
+    savePlatformSettings({ strictRiskFiltering: enabled });
+  };
+
+  const setCriticalNotificationsEnabled = (enabled: boolean) => {
+    setCriticalNotificationsEnabledState(enabled);
+    savePlatformSettings({ criticalNotificationsEnabled: enabled });
+  };
+
+
+  /*
+   * =======================================================
    * MAP CENTER
    * =======================================================
    */
@@ -644,7 +693,38 @@ export function GlobalStateProvider({
       }
     }
 
+    try {
+      const savedSettings = JSON.parse(localStorage.getItem('vtx_platform_settings') || '{}');
+      if (savedSettings.autoRefreshInterval) setAutoRefreshIntervalState(savedSettings.autoRefreshInterval);
+      if (typeof savedSettings.minConfidenceDisplay === 'number') setMinConfidenceDisplayState(savedSettings.minConfidenceDisplay);
+      if (typeof savedSettings.strictRiskFiltering === 'boolean') setStrictRiskFilteringState(savedSettings.strictRiskFiltering);
+      if (typeof savedSettings.criticalNotificationsEnabled === 'boolean') setCriticalNotificationsEnabledState(savedSettings.criticalNotificationsEnabled);
+    } catch {}
+
   }, []);
+
+  /*
+   * =======================================================
+   * AUTO-REFRESH TIMER
+   * =======================================================
+   */
+  useEffect(() => {
+    if (autoRefreshInterval === 'Manual Only' || autoRefreshInterval === 'manual') return;
+
+    let ms = 30 * 60 * 1000;
+    if (autoRefreshInterval === '30 Seconds') ms = 30 * 1000;
+    else if (autoRefreshInterval === '1 Minute') ms = 60 * 1000;
+    else if (autoRefreshInterval === '5 Minutes') ms = 5 * 60 * 1000;
+    else if (autoRefreshInterval === '30 Minutes') ms = 30 * 60 * 1000;
+    else if (autoRefreshInterval === '1 Hour') ms = 60 * 60 * 1000;
+    else if (autoRefreshInterval === '6 Hours') ms = 6 * 60 * 60 * 1000;
+
+    const timer = setInterval(() => {
+      refreshData().catch(() => {});
+    }, ms);
+
+    return () => clearInterval(timer);
+  }, [autoRefreshInterval]);
 
 
   /*
@@ -1309,6 +1389,15 @@ export function GlobalStateProvider({
         setMapZoom,
 
         refreshData,
+
+        autoRefreshInterval,
+        setAutoRefreshInterval,
+        minConfidenceDisplay,
+        setMinConfidenceDisplay,
+        strictRiskFiltering,
+        setStrictRiskFiltering,
+        criticalNotificationsEnabled,
+        setCriticalNotificationsEnabled,
 
       }}
     >

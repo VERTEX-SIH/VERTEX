@@ -63,6 +63,15 @@ function getHaversineMeters(lat1: number, lon1: number, lat2: number, lon2: numb
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function formatConfidence(conf?: string | number | null): string {
+  if (conf == null) return 'N/A';
+  const c = String(conf).toLowerCase().trim();
+  if (c === 'n') return 'Nominal (n)';
+  if (c === 'h') return 'High (h)';
+  if (c === 'l') return 'Low (l)';
+  return String(conf).toUpperCase();
+}
+
 function getFallbackContext(lat: number, lon: number) {
   let nearest: any = null;
   let minDist = Infinity;
@@ -185,7 +194,7 @@ function formatTimestamp(value: any) {
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section>
-      <div className="font-headline-sm text-[12px] text-on-surface mb-2 border-b border-outline-variant pb-1">
+      <div className="font-headline-sm text-[12px] text-[#193946] font-black uppercase tracking-wider mb-2 border-b border-[#efbc9d]/60 pb-1">
         {title}
       </div>
       {children}
@@ -195,7 +204,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 function MetricGrid({ children }: { children: ReactNode }) {
   return (
-    <div className="grid grid-cols-2 gap-[1px] bg-outline-variant border border-outline-variant">
+    <div className="grid grid-cols-2 gap-[1px] bg-[#efbc9d]/50 border border-[#efbc9d]/60">
       {children}
     </div>
   );
@@ -204,8 +213,8 @@ function MetricGrid({ children }: { children: ReactNode }) {
 function Metric({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
   return (
     <div className="bg-surface p-2 min-w-0">
-      <div className="font-mono-label text-[9px] text-secondary mb-1">{label}</div>
-      <div className={`font-mono-data-md text-[12px] truncate ${accent ? 'text-primary' : 'text-on-surface'}`} title={value}>
+      <div className="font-mono-label text-[9px] text-[#556575] font-bold uppercase mb-1">{label}</div>
+      <div className={`font-mono-data-md text-[12px] font-bold truncate ${accent ? 'text-[#f5751c]' : 'text-[#193946]'}`} title={value}>
         {value}
       </div>
     </div>
@@ -214,7 +223,7 @@ function Metric({ label, value, accent = false }: { label: string; value: string
 
 function InspectorBlock({ data }: { data: unknown }) {
   return (
-    <pre className="bg-surface border border-outline-variant p-2 overflow-x-auto whitespace-pre-wrap break-words font-mono text-[9px] leading-relaxed text-secondary">
+    <pre className="bg-surface border border-[#efbc9d]/60 p-2 overflow-x-auto whitespace-pre-wrap break-words font-mono text-[9px] leading-relaxed text-[#193946]">
       {JSON.stringify(data, null, 2)}
     </pre>
   );
@@ -222,11 +231,11 @@ function InspectorBlock({ data }: { data: unknown }) {
 
 function TimelineRow({ status, title, detail }: { status: string; title: string; detail: string }) {
   return (
-    <div className="bg-surface border border-outline-variant p-2 flex gap-3">
-      <div className="font-mono-label text-[9px] text-primary w-14 shrink-0">{status}</div>
+    <div className="bg-surface border border-[#efbc9d]/60 p-2 flex gap-3">
+      <div className="font-mono-label text-[9px] text-[#f5751c] font-bold w-14 shrink-0">{status}</div>
       <div className="min-w-0">
-        <div className="font-mono text-[10px] text-on-surface uppercase">{title}</div>
-        <div className="font-body-sm text-[10px] text-secondary mt-1 break-words">{detail}</div>
+        <div className="font-mono text-[10px] text-[#193946] font-bold uppercase">{title}</div>
+        <div className="font-body-sm text-[10px] text-[#556575] mt-1 break-words">{detail}</div>
       </div>
     </div>
   );
@@ -356,7 +365,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
 
   if (!hotspot) {
     return (
-      <aside className="bg-surface-container-low w-[340px] h-full flex flex-col border-l border-outline-variant fixed right-0 top-[40px] bottom-[32px] z-40">
+      <aside className="bg-surface-container-low w-[340px] h-[calc(100vh-72px)] flex flex-col border-l border-outline-variant fixed right-0 top-[40px] bottom-[32px] z-40 overflow-hidden">
         <div className="p-2 border-b border-outline-variant flex justify-between items-start">
           <div>
             <div className="font-headline-sm text-[14px] text-primary uppercase">
@@ -368,8 +377,8 @@ export function RightPanel({ hotspot }: RightPanelProps) {
             </div>
           </div>
 
-          <div className="font-mono text-[13px] text-on-surface bg-surface-container px-2 py-1 border border-outline-variant">
-            N/A
+          <div className="font-mono text-[11px] text-secondary bg-surface-container px-2 py-1 border border-outline-variant font-medium">
+            NO TARGET
           </div>
         </div>
 
@@ -434,51 +443,56 @@ export function RightPanel({ hotspot }: RightPanelProps) {
     ];
 
   return (
-    <aside className="bg-surface-container-low w-[340px] h-full flex flex-col border-l border-outline-variant fixed right-0 top-[40px] bottom-[32px] z-40 overflow-hidden">
+    <aside className="bg-surface-container-low w-[340px] h-[calc(100vh-72px)] flex flex-col border-l border-outline-variant fixed right-0 top-[40px] bottom-[32px] z-40 overflow-hidden">
 
       {/* HEADER */}
       <div className="p-2 border-b border-outline-variant flex justify-between items-start shrink-0">
         <div>
-          <div className="font-headline-sm text-[14px] text-primary uppercase">
+          <div className="font-headline-sm text-[14px] text-[#193946] font-black uppercase tracking-wide">
             TARGET DOSSIER
           </div>
 
-          <div className="font-body-sm text-[11px] text-secondary mt-1 tracking-widest uppercase">
+          <div className="font-body-sm text-[11px] text-[#556575] mt-1 tracking-widest uppercase">
             EVENT METADATA
           </div>
         </div>
 
-        <div className="font-mono text-[13px] text-on-surface bg-surface-container px-2 py-1 border border-outline-variant">
-          {String(hotspot.id).substring(0, 8)}
+        <div 
+          className="font-mono text-[11px] text-[#193946] bg-surface-container px-2 py-1 border border-outline-variant flex items-center gap-1.5"
+          title={`Active Target Identifier: #${String(hotspot.id)}`}
+        >
+          <span className="text-[9px] text-[#556575] uppercase tracking-wider font-medium">EVENT ID</span>
+          <span className="font-bold text-[#f5751c]">#{String(hotspot.id).substring(0, 8)}</span>
         </div>
       </div>
 
       {/* TABS */}
       <div className="flex border-b border-outline-variant shrink-0 bg-surface">
         {[
-          'DOSSIER',
-          'METRICS',
-          'INSPECTOR',
-          'LOGS',
-        ].map((tab) => (
-          <button
-            key={tab}
-            onClick={() =>
-              setActiveTab(tab as any)
-            }
-            className={`flex-1 py-1.5 text-center font-mono-label text-[10px] tracking-widest uppercase transition-colors ${
-              activeTab === tab
-                ? 'bg-surface-container-highest text-on-surface border-b-2 border-primary'
-                : 'text-secondary hover:bg-surface-container-high'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
+          { id: 'DOSSIER', label: 'DOSSIER', border: 'border-[#f5751c]', text: 'text-[#f5751c]', bg: 'bg-[#f5751c]/10', hoverText: 'hover:text-[#f5751c]', hoverBg: 'hover:bg-[#f5751c]/5' },
+          { id: 'METRICS', label: 'METRICS', border: 'border-[#fca26e]', text: 'text-[#c95914]', bg: 'bg-[#fca26e]/15', hoverText: 'hover:text-[#c95914]', hoverBg: 'hover:bg-[#fca26e]/5' },
+          { id: 'INSPECTOR', label: 'INSPECTOR', border: 'border-[#193946]', text: 'text-[#193946]', bg: 'bg-[#193946]/10', hoverText: 'hover:text-[#193946]', hoverBg: 'hover:bg-[#193946]/5' },
+          { id: 'LOGS', label: 'LOGS', border: 'border-[#556575]', text: 'text-[#556575]', bg: 'bg-[#556575]/15', hoverText: 'hover:text-[#556575]', hoverBg: 'hover:bg-[#556575]/5' },
+        ].map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex-1 py-1.5 text-center font-mono-label text-[10px] tracking-widest uppercase transition-all border-b-2 ${
+                isActive
+                  ? `${tab.border} ${tab.text} ${tab.bg} font-bold shadow-[inset_0_-2px_4px_rgba(0,0,0,0.03)]`
+                  : `border-transparent text-[#797983] ${tab.hoverText} ${tab.hoverBg}`
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* CONTENT */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-4">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-4 pb-12">
 
         {activeTab === 'DOSSIER' && (
           <>
@@ -539,7 +553,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                       </div>
 
                       <div className="font-mono-data-md text-[13px] text-on-surface">
-                        {firms.confidence}
+                        {formatConfidence(firms.confidence)}
                       </div>
                     </div>
 
@@ -668,20 +682,20 @@ export function RightPanel({ hotspot }: RightPanelProps) {
             ) : (
 
               <>
-                <div className="border border-outline-variant p-2 relative bg-surface">
+                <div className="border border-[#efbc9d]/70 p-2.5 relative bg-surface shadow-xs">
                   <div
-                    className="absolute top-0 left-0 w-1 h-full"
+                    className="absolute top-0 left-0 w-1.5 h-full"
                     style={{
                       backgroundColor: color,
                     }}
                   />
 
-                  <div className="font-mono-label text-[10px] text-secondary mb-1">
+                  <div className="font-mono-label text-[10px] text-[#556575] mb-1 font-bold tracking-widest pl-1">
                     PREDICTED CLASS
                   </div>
 
                   <div
-                    className="font-headline-sm text-[14px]"
+                    className="font-headline-sm text-[14px] font-black tracking-wide pl-1"
                     style={{ color }}
                   >
                     [{label}]{' '}
@@ -692,28 +706,28 @@ export function RightPanel({ hotspot }: RightPanelProps) {
 
                 <div>
                   <div>
-                    <div className="font-headline-sm text-[12px] text-on-surface mb-2 border-b border-outline-variant pb-1">
+                    <div className="font-headline-sm text-[12px] text-[#193946] font-black mb-2 border-b border-[#efbc9d]/60 pb-1 tracking-wider">
                       THERMAL SIGNATURE
                     </div>
 
-                    <div className="grid grid-cols-2 gap-[1px] bg-outline-variant border border-outline-variant">
+                    <div className="grid grid-cols-2 gap-[1px] bg-[#efbc9d]/50 border border-[#efbc9d]/60">
 
                       <div className="bg-surface p-2">
-                        <div className="font-mono-label text-[10px] text-secondary mb-1">
+                        <div className="font-mono-label text-[10px] text-[#556575] mb-1 font-bold uppercase">
                           FRP
                         </div>
 
-                        <div className="font-mono-data-md text-[13px] text-primary">
+                        <div className="font-mono-data-md text-[13px] text-[#f5751c] font-black">
                           {firms.frp.toFixed(1)} MW
                         </div>
                       </div>
 
                       <div className="bg-surface p-2">
-                        <div className="font-mono-label text-[10px] text-secondary mb-1">
+                        <div className="font-mono-label text-[10px] text-[#556575] mb-1 font-bold uppercase">
                           BRIGHT
                         </div>
 
-                        <div className="font-mono-data-md text-[13px] text-on-surface">
+                        <div className="font-mono-data-md text-[13px] text-[#193946] font-bold">
                           {firms.brightness > 0
                             ? firms.brightness.toFixed(1)
                             : '0.0'}{' '}
@@ -722,21 +736,21 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                       </div>
 
                       <div className="bg-surface p-2">
-                        <div className="font-mono-label text-[10px] text-secondary mb-1">
+                        <div className="font-mono-label text-[10px] text-[#556575] mb-1 font-bold uppercase">
                           FIRMS CONF
                         </div>
 
-                        <div className="font-mono-data-md text-[13px] text-on-surface">
-                          {firms.confidence}
+                        <div className="font-mono-data-md text-[13px] text-[#193946] font-bold">
+                          {formatConfidence(firms.confidence)}
                         </div>
                       </div>
 
                       <div className="bg-surface p-2">
-                        <div className="font-mono-label text-[10px] text-secondary mb-1">
+                        <div className="font-mono-label text-[10px] text-[#556575] mb-1 font-bold uppercase">
                           AI CONFID
                         </div>
 
-                        <div className="font-mono-data-md text-[13px] text-on-surface">
+                        <div className="font-mono-data-md text-[13px] text-[#193946] font-bold">
                           {classification.confidence_score.toFixed(
                             2
                           )}
@@ -744,11 +758,11 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                       </div>
 
                       <div className="bg-surface p-2 col-span-2">
-                        <div className="font-mono-label text-[10px] text-secondary mb-1">
+                        <div className="font-mono-label text-[10px] text-[#556575] mb-1 font-bold uppercase">
                           DAY/NGT
                         </div>
 
-                        <div className="font-mono-data-md text-[13px] text-on-surface">
+                        <div className="font-mono-data-md text-[13px] text-[#193946] font-bold">
                           {firms.daynight === 'D'
                             ? 'DAY'
                             : 'NIGHT'}
@@ -758,11 +772,11 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                   </div>
 
                   <div className="mt-4">
-                    <div className="font-headline-sm text-[12px] text-on-surface mb-2 border-b border-outline-variant pb-1">
+                    <div className="font-headline-sm text-[12px] text-[#193946] font-black mb-2 border-b border-[#efbc9d]/60 pb-1 tracking-wider">
                       GEOSPATIAL
                     </div>
 
-                    <div className="bg-surface border border-outline-variant p-2 font-mono-data-sm text-[12px]">
+                    <div className="bg-surface border border-[#efbc9d]/60 p-2.5 font-mono text-[12px] text-[#193946] font-bold flex justify-between">
                       <div>
                         LAT:{' '}
                         {firms.latitude.toFixed(4)}
@@ -778,9 +792,9 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                   </div>
 
                   <div className="mt-4">
-                    <div className="flex justify-between items-end mb-2 border-b border-outline-variant pb-1">
+                    <div className="flex justify-between items-end mb-2 border-b border-[#efbc9d]/60 pb-1">
 
-                      <div className="font-headline-sm text-[12px] text-on-surface">
+                      <div className="font-headline-sm text-[12px] text-[#193946] font-black tracking-wider">
                         INDUSTRIAL CONTEXT
                       </div>
 
@@ -794,7 +808,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                                 true
                               )
                             }
-                            className="font-mono-label text-[9px] text-primary hover:underline uppercase tracking-widest flex items-center"
+                            className="font-mono-label text-[9px] text-[#f5751c] hover:underline uppercase tracking-widest flex items-center font-bold"
                           >
                             <span className="material-symbols-outlined text-[12px] mr-0.5">
                               account_tree
@@ -810,7 +824,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                             isRefreshingContext
                           }
                           title="Refresh Context"
-                          className="font-mono-label text-[9px] text-secondary hover:text-primary uppercase tracking-widest flex items-center bg-surface-container px-1 py-0.5 rounded cursor-pointer disabled:opacity-50"
+                          className="font-mono-label text-[9px] text-[#556575] hover:text-[#f5751c] uppercase tracking-widest flex items-center bg-[#193946]/5 hover:bg-[#193946]/10 px-1.5 py-0.5 border border-[#efbc9d]/60 rounded cursor-pointer disabled:opacity-50"
                         >
                           <span
                             className={`material-symbols-outlined text-[12px] ${
@@ -825,12 +839,12 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                       </div>
                     </div>
 
-                    <div className="bg-surface border border-outline-variant p-2 font-body-sm text-[12px] space-y-3">
+                    <div className="bg-surface border border-[#efbc9d]/60 p-2.5 font-body-sm text-[12px] space-y-3">
 
                       {context.nearby_facilities?.length >
                       0 ? (
                         <div>
-                          <div className="font-mono-label text-[13px] font-bold text-on-surface uppercase">
+                          <div className="font-mono-label text-[13px] font-black text-[#193946] uppercase">
                             {
                               context
                                 .nearby_facilities[0]
@@ -838,7 +852,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                             }
                           </div>
 
-                          <div className="text-secondary capitalize">
+                          <div className="text-[#556575] capitalize mt-0.5">
                             {
                               context
                                 .nearby_facilities[0]
@@ -849,7 +863,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                             )}
                           </div>
 
-                          <div className="text-secondary">
+                          <div className="text-[#556575] mt-0.5">
                             Distance:{' '}
                             {(
                               context
@@ -864,7 +878,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                           </div>
                         </div>
                       ) : (
-                        <div className="text-secondary italic">
+                        <div className="text-[#556575] italic leading-relaxed">
                           {contextMessage(
                             context.osm_source
                           )}
@@ -872,13 +886,13 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                       )}
 
                       {context.osm_source && (
-                        <div className="pt-2 border-t border-outline-variant">
+                        <div className="pt-2 border-t border-[#efbc9d]/40">
 
-                          <div className="font-mono-label text-[10px] text-secondary mb-1">
+                          <div className="font-mono-label text-[9px] text-[#556575] mb-1 uppercase font-bold">
                             SOURCE
                           </div>
 
-                          <div className="font-mono-label text-[11px] text-on-surface">
+                          <div className="font-mono text-[11px] font-bold text-[#193946]">
                             {contextSourceLabel(
                               context.osm_source
                             )}
@@ -886,7 +900,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
 
                           {context.osm_source ===
                             'OFFLINE_CATALOG' && (
-                            <div className="text-[10px] text-secondary mt-1 italic">
+                            <div className="text-[10px] text-[#556575] mt-1 italic">
                               Showing facility context from the VERTEX
                               offline facility catalog.
                             </div>
@@ -907,21 +921,21 @@ export function RightPanel({ hotspot }: RightPanelProps) {
 
                 {/* SATELLITE EVIDENCE */}
                 <div className="mt-4">
-                  <div className="flex justify-between items-end mb-2 border-b border-outline-variant pb-1">
-                    <div className="font-headline-sm text-[12px] text-on-surface">
+                  <div className="flex justify-between items-end mb-2 border-b border-[#efbc9d]/60 pb-1">
+                    <div className="font-headline-sm text-[12px] text-[#193946] font-black tracking-wider">
                       SATELLITE EVIDENCE
                     </div>
-                    <div className="font-mono-label text-[9px] text-secondary uppercase tracking-widest">
+                    <div className="font-mono-label text-[9px] text-[#556575] font-bold uppercase tracking-widest">
                       {effectiveSatelliteEvidence?.source || 'SENTINEL-2 L2A'}
                     </div>
                   </div>
-                  <div className="bg-surface border border-outline-variant p-2 space-y-2">
+                  <div className="bg-surface border border-[#efbc9d]/60 p-2.5 space-y-2">
                     {effectiveSatelliteEvidence?.image_data_url ? (
                       <>
                         <button
                           type="button"
                           onClick={() => setShowSatelliteImage(true)}
-                          className="block w-full cursor-zoom-in relative aspect-square border border-outline-variant overflow-hidden group bg-black"
+                          className="block w-full cursor-zoom-in relative aspect-square border border-[#efbc9d]/60 overflow-hidden group bg-black"
                           title="Open satellite image"
                         >
                           <img
@@ -939,11 +953,12 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                           {/* Thermal Heat & Fire Combustion Overlay */}
                           <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                             <div className="w-16 h-16 rounded-full border-2 border-red-500/80 animate-ping opacity-75" />
-                            <div className="absolute w-10 h-10 rounded-full bg-gradient-to-r from-red-600/40 via-amber-500/50 to-yellow-400/60 blur-xs animate-pulse" />
-                            <div className="absolute w-4 h-4 rounded-full bg-amber-400 shadow-[0_0_12px_#ff3300] border border-white" />
+                            <div className="w-8 h-8 rounded-full bg-red-600/40 border border-red-400 flex items-center justify-center">
+                              <div className="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_8px_#ef4444]" />
+                            </div>
                           </div>
-                          <div className="absolute top-2 left-2 bg-black/80 backdrop-blur-md px-2 py-1 border border-red-500/50 flex items-center gap-1.5 font-mono text-[9px] text-red-400 shadow-lg">
-                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                          <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-black/80 backdrop-blur-xs border border-red-500/40 text-[9px] font-mono font-bold text-red-400 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                             <span>SWIR THERMAL HEAT ({firms.frp.toFixed(1)} MW)</span>
                           </div>
                         </button>
@@ -977,9 +992,9 @@ export function RightPanel({ hotspot }: RightPanelProps) {
 
                 {/* AI ANALYSIS */}
                 <div>
-                  <div className="flex justify-between items-end mb-2 border-b border-outline-variant pb-1">
+                  <div className="flex justify-between items-end mb-2 border-b border-[#efbc9d]/60 pb-1">
 
-                    <div className="font-headline-sm text-[12px] text-on-surface">
+                    <div className="font-headline-sm text-[12px] text-[#193946] font-black tracking-wider">
                       AI ANALYSIS
                     </div>
 
@@ -987,7 +1002,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                       onClick={() =>
                         setShowEvidence(true)
                       }
-                      className="font-mono-label text-[9px] text-primary hover:underline uppercase tracking-widest flex items-center"
+                      className="font-mono-label text-[9px] text-[#f5751c] hover:underline uppercase tracking-widest flex items-center font-bold"
                     >
                       <span className="material-symbols-outlined text-[12px] mr-0.5">
                         stacks
@@ -997,7 +1012,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                     </button>
                   </div>
 
-                  <div className="bg-surface border border-outline-variant p-2 text-[12px]">
+                  <div className="bg-surface border border-[#efbc9d]/60 p-2.5 text-[12px]">
 
                     <div className="font-body-sm mb-3 leading-relaxed">
                       {classification.explanation
@@ -1061,8 +1076,8 @@ export function RightPanel({ hotspot }: RightPanelProps) {
               <MetricGrid>
                 <Metric label="SCAN" value={`${Number(firms.scan ?? 0).toFixed(2)} km`} />
                 <Metric label="TRACK" value={`${Number(firms.track ?? 0).toFixed(2)} km`} />
-                <Metric label="FIRMS CONF" value={String(firms.confidence ?? 'N/A').toUpperCase()} />
-                <Metric label="DAY / NIGHT" value={firms.daynight === 'D' ? 'DAY' : firms.daynight === 'N' ? 'NIGHT' : 'N/A'} />
+                <Metric label="FIRMS CONF" value={formatConfidence(firms.confidence)} />
+                <Metric label="SATELLITE CAPTURE" value={firms.daynight === 'D' ? 'Captured in the day' : firms.daynight === 'N' ? 'Captured at night' : 'N/A'} />
               </MetricGrid>
             </Section>
 

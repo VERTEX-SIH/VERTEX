@@ -80,6 +80,7 @@ export interface ClassificationResult {
   evidence: string[];
   risk_score?: number;
   risk_level?: string;
+  source_data?: Record<string, any>;
 }
 
 export interface ClassifiedHotspot {

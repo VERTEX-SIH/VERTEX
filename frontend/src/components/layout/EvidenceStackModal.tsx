@@ -110,8 +110,8 @@ export function EvidenceStackModal({
       : { ...rawContext, ...getFallbackContext(firms.latitude, firms.longitude) };
 
   return (
-    <div className="fixed top-[40px] right-0 bottom-0 left-0 z-[40] flex flex-col bg-surface/95 backdrop-blur-md">
-      <div className="flex-1 min-h-0 overflow-y-auto">
+    <div className="fixed top-[40px] right-0 bottom-[32px] left-0 z-[60] flex flex-col bg-surface/95 backdrop-blur-md">
+      <div className="flex-1 min-h-0 overflow-y-auto pb-12">
         <div className="max-w-6xl mx-auto p-6 space-y-6">
           <div className="flex items-center justify-between border border-outline-variant bg-surface px-3 py-2">
             <div className="font-mono text-[9px] text-secondary uppercase tracking-widest">
@@ -120,29 +120,11 @@ export function EvidenceStackModal({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  onClose();
-                }}
-                className="font-mono-label text-[10px] text-secondary hover:text-primary uppercase tracking-widest px-2 py-1 border border-outline-variant"
-              >
-                HOME
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  router.push('/analytics');
-                }}
-                className="font-mono-label text-[10px] text-secondary hover:text-primary uppercase tracking-widest px-2 py-1 border border-outline-variant"
-              >
-                ANALYTICS
-              </button>
-              <button
-                type="button"
                 onClick={onClose}
-                className="font-mono-label text-[10px] text-secondary hover:text-primary uppercase tracking-widest px-2 py-1 border border-outline-variant"
+                className="font-mono-label text-[10px] text-secondary hover:text-primary uppercase tracking-widest px-3 py-1 border border-outline-variant hover:bg-surface-container flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                RETURN
+                <span className="material-symbols-outlined text-[14px]">arrow_back</span>
+                RETURN TO MAP
               </button>
             </div>
           </div>
