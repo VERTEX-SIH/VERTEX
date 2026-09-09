@@ -107,7 +107,7 @@ export function FirePopup({
               </span>
 
               <span className="font-mono-data-md text-primary">
-                {f.brightness.toFixed(1)} K
+                {(f.brightness && f.brightness > 0) ? f.brightness.toFixed(1) : 'N/A'} K
               </span>
             </div>
 

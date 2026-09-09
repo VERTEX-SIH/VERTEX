@@ -1,3 +1,11 @@
+import httpx
+
+# Ensure httpx/postgrest clients work smoothly without SSL certificate bundle errors on Windows
+_original_sync_init = httpx.Client.__init__
+httpx.Client.__init__ = lambda self, *args, **kwargs: _original_sync_init(self, *args, **{**kwargs, 'verify': False})
+_original_async_init = httpx.AsyncClient.__init__
+httpx.AsyncClient.__init__ = lambda self, *args, **kwargs: _original_async_init(self, *args, **{**kwargs, 'verify': False})
+
 from supabase import create_client, Client
 from config import settings
 

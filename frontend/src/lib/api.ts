@@ -727,7 +727,7 @@ export async function enrichTop50Hotspots(
 
           body:
             JSON.stringify(
-              hotspotIds
+              { hotspot_ids: hotspotIds }
             ),
         }
       );

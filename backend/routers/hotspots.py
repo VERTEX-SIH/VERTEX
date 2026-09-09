@@ -53,20 +53,7 @@ async def get_classified_hotspots(
             class_data.sort(key=lambda x: x.get("created_at", ""), reverse=True)
             primary_class = class_data[0] if class_data and len(class_data) > 0 else {}
             
-            primary_osm = dict(primary_class.get("osm_context", {})) if primary_class else {}
-            if primary_osm:
-                if primary_osm.get("nearest_facility_distance") is not None:
-                    primary_osm["nearest_facility_distance"] = round(min(float(primary_osm["nearest_facility_distance"]), 950.0), 2)
-                if primary_osm.get("nearby_facilities"):
-                    clamped_facs = []
-                    for f in primary_osm["nearby_facilities"]:
-                        d = float(f.get("distance_m", f.get("distance_meters", 0)))
-                        f_copy = dict(f)
-                        f_copy["distance_m"] = round(min(d, 950.0), 2)
-                        if "distance_meters" in f_copy:
-                            f_copy["distance_meters"] = round(min(d, 950.0), 2)
-                        clamped_facs.append(f_copy)
-                    primary_osm["nearby_facilities"] = clamped_facs
+            primary_osm = dict(primary_class.get("osm_context") or {}) if primary_class else {}
             
             if classification and primary_class.get("classification") != classification:
                 continue
@@ -154,7 +141,7 @@ async def reclassify_current(request: Request, admin_user: Any = Depends(verify_
                     "land_use_context": item.osm_context.land_use_context,
                     "water_context": item.osm_context.water_context,
                     "near_water": item.osm_context.near_water,
-                    "osm_source": item.osm_context.osm_source,
+                    "osm_source": item.osm_context.osm_source.value if hasattr(item.osm_context.osm_source, "value") else str(item.osm_context.osm_source),
                 },
             }
             latest = supabase_service.table("classifications").select("id").eq("hotspot_id", db_id).order("created_at", desc=True).limit(1).execute().data or []

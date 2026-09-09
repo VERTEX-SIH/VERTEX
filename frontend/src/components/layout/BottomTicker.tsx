@@ -48,7 +48,22 @@ export function BottomTicker({ hotspots = [] }: BottomTickerProps) {
         counts.AGRI_BURN += 1;
         break;
 
+      case ClassificationType.GAS_FLARE:
+        counts.IND_FIRE += 1;
+        break;
+
+      case ClassificationType.MINING_THERMAL_ACTIVITY:
+      case ClassificationType.OTHER_THERMAL_ANOMALY:
+        counts.UNCORROB += 1;
+        break;
+
+      case ClassificationType.UNCLASSIFIED:
+        break;
+
       case ClassificationType.UNKNOWN_UNCERTAIN:
+        counts.UNCORROB += 1;
+        break;
+
       default:
         counts.UNCORROB += 1;
         break;

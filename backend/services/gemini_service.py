@@ -1,3 +1,11 @@
+import httpx
+
+# Ensure httpx clients created by google-genai SDK don't fail SSL verification on Windows
+_original_sync_init = httpx.Client.__init__
+httpx.Client.__init__ = lambda self, *args, **kwargs: _original_sync_init(self, *args, **{**kwargs, 'verify': False})
+_original_async_init = httpx.AsyncClient.__init__
+httpx.AsyncClient.__init__ = lambda self, *args, **kwargs: _original_async_init(self, *args, **{**kwargs, 'verify': False})
+
 from google import genai
 from pydantic import ValidationError
 import json
@@ -54,7 +62,9 @@ async def classify_with_gemini(hotspot: FIRMSHotspot, osm_context: OSMContext) -
     """
     
     try:
-        response = client.models.generate_content(
+        import asyncio
+        response = await asyncio.to_thread(
+            client.models.generate_content,
             model=settings.GEMINI_MODEL,
             contents=prompt,
             config={

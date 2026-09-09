@@ -35,9 +35,9 @@ def _water_tag(tags: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-async def query_overpass(lat: float, lon: float, radius: int = 1000) -> Optional[List[Dict[str, Any]]]:
+async def query_overpass(lat: float, lon: float, radius: int = 1000) -> Optional[tuple[List[Dict[str, Any]], List[str]]]:
     query = f"""
-    [out:json][timeout:20];
+    [out:json][timeout:5];
     (
       way["landuse"="industrial"](around:{radius},{lat},{lon});
       node["man_made"="works"](around:{radius},{lat},{lon});
@@ -46,21 +46,34 @@ async def query_overpass(lat: float, lon: float, radius: int = 1000) -> Optional
       nwr["power"="plant"](around:{radius},{lat},{lon});
       nwr["power"="generator"](around:{radius},{lat},{lon});
       nwr["industrial"](around:{radius},{lat},{lon});
+      nwr["natural"="wood"](around:{radius},{lat},{lon});
+      nwr["landuse"="forest"](around:{radius},{lat},{lon});
+      nwr["leisure"="nature_reserve"](around:{radius},{lat},{lon});
+      nwr["landuse"="farmland"](around:{radius},{lat},{lon});
     );
     out center tags;
     """
 
     headers = {"User-Agent": "VERTEX-Geospatial-System/1.0 (NTRO Fire Detection)"}
-    timeout = httpx.Timeout(20.0, connect=5.0)
-    async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
+    timeout = httpx.Timeout(4.0, connect=1.5)
+    async with httpx.AsyncClient(timeout=timeout, headers=headers, verify=False) as client:
         for mirror in OVERPASS_MIRRORS:
             try:
                 response = await client.post(mirror, data={"data": query})
                 response.raise_for_status()
                 elements = response.json().get("elements", [])
                 facilities = []
+                land_use_tags = []
                 for el in elements:
                     tags = el.get("tags", {}) or {}
+                    if tags.get("natural") == "wood":
+                        land_use_tags.append("FOREST_WOOD")
+                    if tags.get("landuse") == "forest":
+                        land_use_tags.append("FOREST")
+                    if tags.get("leisure") == "nature_reserve":
+                        land_use_tags.append("NATURE_RESERVE")
+                    if tags.get("landuse") == "farmland":
+                        land_use_tags.append("FARMLAND")
                     lat_el = el.get("lat") or (el.get("center") or {}).get("lat")
                     lon_el = el.get("lon") or (el.get("center") or {}).get("lon")
                     if lat_el is None or lon_el is None:
@@ -72,7 +85,8 @@ async def query_overpass(lat: float, lon: float, radius: int = 1000) -> Optional
                         "longitude": lon_el,
                         "water_feature": _water_tag(tags),
                     })
-                return facilities
+                land_use_tags = list(set(land_use_tags))
+                return facilities, land_use_tags
             except Exception as e:
                 logger.warning(f"Overpass mirror {mirror} failed: {e}")
         return None
@@ -82,7 +96,7 @@ async def query_overpass(lat: float, lon: float, radius: int = 1000) -> Optional
 async def query_water_context(lat: float, lon: float, radius: int = 150) -> Optional[List[Dict[str, Any]]]:
     """Find nearby OSM water features independently of industrial context."""
     query = f"""
-    [out:json][timeout:10];
+    [out:json][timeout:3];
     (
       nwr["natural"="water"](around:{radius},{lat},{lon});
       nwr["landuse"="reservoir"](around:{radius},{lat},{lon});
@@ -91,8 +105,8 @@ async def query_water_context(lat: float, lon: float, radius: int = 150) -> Opti
     out center tags;
     """
     headers = {"User-Agent": "VERTEX-Geospatial-System/1.0 (NTRO Fire Detection)"}
-    timeout = httpx.Timeout(12.0, connect=4.0)
-    async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
+    timeout = httpx.Timeout(3.0, connect=1.5)
+    async with httpx.AsyncClient(timeout=timeout, headers=headers, verify=False) as client:
         for mirror in OVERPASS_MIRRORS:
             try:
                 response = await client.post(mirror, data={"data": query})
@@ -172,11 +186,16 @@ async def enrich_hotspot(hotspot: FIRMSHotspot, existing_context: Optional[OSMCo
     # Facility and water lookups are independent. A water lookup failure must not block classification.
     facilities_task = asyncio.create_task(query_overpass(hotspot.latitude, hotspot.longitude, 1000))
     water_task = asyncio.create_task(query_water_context(hotspot.latitude, hotspot.longitude, 150))
-    live_facilities, water_features = await asyncio.gather(facilities_task, water_task, return_exceptions=True)
-    if isinstance(live_facilities, Exception):
-        live_facilities = None
+    live_result, water_features = await asyncio.gather(facilities_task, water_task, return_exceptions=True)
+    if isinstance(live_result, Exception):
+        live_result = None
     if isinstance(water_features, Exception):
         water_features = None
+
+    live_facilities = None
+    land_use_context = []
+    if live_result is not None:
+        live_facilities, land_use_context = live_result
 
     water_context = []
     if water_features:
@@ -199,10 +218,10 @@ async def enrich_hotspot(hotspot: FIRMSHotspot, existing_context: Optional[OSMCo
                 dist = haversine_distance(hotspot.latitude, hotspot.longitude, fac["latitude"], fac["longitude"])
                 if fac.get("water_feature"):
                     continue
-                clamped_dist = round(min(dist, 950.0), 2)
-                nearby.append({"type": fac["type"], "distance_m": clamped_dist, "name": fac["name"]})
-                if clamped_dist < nearest_dist:
-                    nearest_dist = clamped_dist
+                actual_dist = round(dist, 2)
+                nearby.append({"type": fac["type"], "distance_m": actual_dist, "name": fac["name"]})
+                if actual_dist < nearest_dist:
+                    nearest_dist = actual_dist
                     nearest_type = fac["type"]
             nearby.sort(key=lambda x: x["distance_m"])
             source = "LIVE" if nearby else "LIVE_NO_FACILITY"
@@ -211,7 +230,7 @@ async def enrich_hotspot(hotspot: FIRMSHotspot, existing_context: Optional[OSMCo
                 nearest_facility_distance=nearest_dist if nearest_dist != float("inf") else None,
                 nearest_facility_type=nearest_type,
                 facility_count_in_radius=len(nearby),
-                land_use_context=[],
+                land_use_context=land_use_context,
                 water_context=water_context,
                 near_water=bool(water_context),
                 osm_source=source,
@@ -222,11 +241,11 @@ async def enrich_hotspot(hotspot: FIRMSHotspot, existing_context: Optional[OSMCo
         offline_facilities = find_nearby_facilities(hotspot.latitude, hotspot.longitude, 1000)
         if offline_facilities:
             context = OSMContext(
-                nearby_facilities=[{"type": f["type"], "distance_m": round(min(float(f["distance_m"]), 950.0), 2), "name": f["name"]} for f in offline_facilities],
-                nearest_facility_distance=round(min(float(offline_facilities[0]["distance_m"]), 950.0), 2),
+                nearby_facilities=[{"type": f["type"], "distance_m": round(float(f["distance_m"]), 2), "name": f["name"]} for f in offline_facilities],
+                nearest_facility_distance=round(float(offline_facilities[0]["distance_m"]), 2),
                 nearest_facility_type=offline_facilities[0]["type"],
                 facility_count_in_radius=len(offline_facilities),
-                land_use_context=[],
+                land_use_context=land_use_context,
                 water_context=water_context,
                 near_water=bool(water_context),
                 osm_source="OFFLINE_CATALOG",
@@ -237,7 +256,7 @@ async def enrich_hotspot(hotspot: FIRMSHotspot, existing_context: Optional[OSMCo
                 nearest_facility_distance=None,
                 nearest_facility_type=None,
                 facility_count_in_radius=0,
-                land_use_context=[],
+                land_use_context=land_use_context,
                 water_context=water_context,
                 near_water=bool(water_context),
                 osm_source="LIVE_NO_FACILITY",
@@ -247,11 +266,11 @@ async def enrich_hotspot(hotspot: FIRMSHotspot, existing_context: Optional[OSMCo
 
     # OSM facility query failed; preserve an existing valid context, and retain water result if available.
     if existing_context and existing_context.osm_source in {"LIVE", "CACHED", "OFFLINE_CATALOG", "LIVE_NO_FACILITY", "CACHED_NO_FACILITY"}:
-        clamped_nearest = min(existing_context.nearest_facility_distance, 950.0) if existing_context.nearest_facility_distance is not None else None
-        clamped_facilities = [{"type": f.get("type"), "distance_m": min(float(f.get("distance_m", 0)), 950.0), "name": f.get("name")} for f in existing_context.nearby_facilities] if existing_context.nearby_facilities else []
+        actual_nearest = existing_context.nearest_facility_distance if existing_context.nearest_facility_distance is not None else None
+        actual_facilities = [{"type": f.get("type"), "distance_m": float(f.get("distance_m", 0)), "name": f.get("name")} for f in existing_context.nearby_facilities] if existing_context.nearby_facilities else []
         return OSMContext(
-            nearby_facilities=clamped_facilities,
-            nearest_facility_distance=clamped_nearest,
+            nearby_facilities=actual_facilities,
+            nearest_facility_distance=actual_nearest,
             nearest_facility_type=existing_context.nearest_facility_type,
             facility_count_in_radius=existing_context.facility_count_in_radius,
             land_use_context=existing_context.land_use_context,
@@ -263,8 +282,8 @@ async def enrich_hotspot(hotspot: FIRMSHotspot, existing_context: Optional[OSMCo
     offline_facilities = find_nearby_facilities(hotspot.latitude, hotspot.longitude, 1000)
     if offline_facilities:
         return OSMContext(
-            nearby_facilities=[{"type": f["type"], "distance_m": round(min(float(f["distance_m"]), 950.0), 2), "name": f["name"]} for f in offline_facilities],
-            nearest_facility_distance=round(min(float(offline_facilities[0]["distance_m"]), 950.0), 2),
+            nearby_facilities=[{"type": f["type"], "distance_m": round(float(f["distance_m"]), 2), "name": f["name"]} for f in offline_facilities],
+            nearest_facility_distance=round(float(offline_facilities[0]["distance_m"]), 2),
             nearest_facility_type=offline_facilities[0]["type"],
             facility_count_in_radius=len(offline_facilities),
             land_use_context=[],

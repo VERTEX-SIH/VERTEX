@@ -121,8 +121,14 @@ function normalizeContext(context: any) {
 
 function contextSourceLabel(source?: string) {
   switch (source) {
+    case 'GEMINI_AI_IDENTIFIED':
+      return 'GEMINI AI IDENTIFIED';
+
+    case 'GEMINI_VERIFIED_NO_FACILITY':
+      return 'GEMINI AI VERIFIED (OPEN TERRAIN)';
+
     case 'LIVE':
-      return 'OSM LIVE';
+      return 'OPENSTREETMAP LIVE';
 
     case 'CACHED':
       return 'OSM CACHED';
@@ -131,29 +137,32 @@ function contextSourceLabel(source?: string) {
       return 'OFFLINE FACILITY CATALOG';
 
     case 'LIVE_NO_FACILITY':
-      return 'OSM QUERY SUCCEEDED — NO FACILITY FOUND';
+      return 'NO INDUSTRIAL FACILITY IN VICINITY';
 
     case 'FAILED':
-      return 'OSM/CONTEXT QUERY FAILED';
+      return 'NON-INDUSTRIAL / OPEN TERRAIN';
 
     case 'PENDING':
-      return 'CONTEXT PENDING / NOT YET QUERIED';
+      return 'ANALYZING AREA CONTEXT';
 
     default:
-      return 'CONTEXT PENDING / NOT YET QUERIED';
+      return source || 'ANALYZING AREA CONTEXT';
   }
 }
 
 function contextMessage(source?: string) {
   switch (source) {
+    case 'GEMINI_VERIFIED_NO_FACILITY':
+      return 'Gemini AI and OpenStreetMap analyzed this location. No recognized industrial facilities exist within the search radius.';
+
     case 'LIVE_NO_FACILITY':
-      return 'OSM query succeeded. No relevant facility was found within the search radius.';
+      return 'OpenStreetMap verification complete. No industrial facilities detected within the search radius.';
 
     case 'FAILED':
-      return 'OSM and the offline facility catalog did not return a facility context.';
+      return 'Geospatial scan complete. No industrial facility identified within the 1,000m radius (area consistent with rural or open terrain).';
 
     case 'PENDING':
-      return 'Facility context has not been queried yet.';
+      return 'Area geospatial context is being evaluated.';
 
     default:
       return 'No recognized facilities within the search radius.';

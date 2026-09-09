@@ -58,13 +58,13 @@ export function Sidebar({
     let filtered = sourceHotspots;
 
     if (streamFilter === 'CLASSIFIED') {
-      filtered = hotspots.filter(
+      filtered = sourceHotspots.filter(
         (h) =>
           h.classification?.classification !==
           ClassificationType.UNCLASSIFIED
       );
     } else if (streamFilter === 'PENDING') {
-      filtered = hotspots.filter(
+      filtered = sourceHotspots.filter(
         (h) =>
           h.classification?.classification ===
           ClassificationType.UNCLASSIFIED
@@ -397,61 +397,21 @@ export function Sidebar({
                         <div className="font-body-sm text-[11px] text-secondary mt-1 truncate">
 
                           {(() => {
-
-                            if (!context) {
-                              return 'Facility not queried';
+                            if (!context || context.osm_source === 'PENDING' || isPending) {
+                              return 'Analyzing area context...';
                             }
 
-                            if (
-                              context.nearby_facilities &&
-                              context.nearby_facilities.length >
-                                0
-                            ) {
-                              return `${
-                                context.nearest_facility_type ||
-                                'Facility'
-                              } (${
+                            if (context.nearest_facility_type) {
+                              const dist =
                                 context.nearest_facility_distance != null
-                                  ? Math.min(context.nearest_facility_distance, 1000).toFixed(
-                                      0
-                                    )
-                                  : '?'
-                              }m)`;
+                                  ? Math.round(context.nearest_facility_distance)
+                                  : null;
+                              return `${context.nearest_facility_type}${
+                                dist != null ? ` (${dist}m)` : ''
+                              }`;
                             }
 
-                            if (
-                              context.osm_source ===
-                              'PENDING'
-                            ) {
-                              return 'Facility Context Pending...';
-                            }
-
-                            if (
-                              context.osm_source ===
-                                'CACHED_NO_FACILITY' ||
-                              context.osm_source ===
-                                'LIVE_NO_FACILITY' ||
-                              context.osm_source ===
-                                'OFFLINE_CATALOG'
-                            ) {
-                              return 'No facilities found';
-                            }
-
-                            if (
-                              context.osm_source ===
-                              'FAILED'
-                            ) {
-                              return 'Facility query failed';
-                            }
-
-                            if (
-                              isPending
-                            ) {
-                              return 'Facility not queried';
-                            }
-
-                            return 'Facility unavailable';
-
+                            return 'No industrial site nearby';
                           })()}
 
                         </div>

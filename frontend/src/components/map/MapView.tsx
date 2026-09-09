@@ -289,8 +289,8 @@ export function MapView({
                   ClassificationType.OTHER_THERMAL_ANOMALY,
                   '#6366f1',
                   ClassificationType.UNKNOWN_UNCERTAIN,
-                  '#ea580c',
-                  '#ea580c',
+                  '#6b7280',
+                  '#6b7280',
                 ],
               ],
               'circle-radius': [

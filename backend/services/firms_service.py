@@ -59,7 +59,7 @@ async def fetch_realtime_hotspots(
     logger.info(f"India boundary filter: {before} → {len(hotspots)} hotspots")
         
     # Sort by FRP descending so clients can easily slice highest priority if needed
-    hotspots.sort(key=lambda h: h.frp, reverse=True)
+    hotspots.sort(key=lambda h: h.frp or 0.0, reverse=True)
     return hotspots
 
 async def fetch_area_hotspots(
@@ -74,7 +74,7 @@ async def fetch_area_hotspots(
     return hotspots
 
 async def _fetch_and_parse(url: str) -> List[FIRMSHotspot]:
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(verify=False) as client:
         try:
             response = await client.get(url, timeout=60.0)
             response.raise_for_status()

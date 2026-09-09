@@ -71,12 +71,12 @@ async def classify_hotspot_with_context(hotspot: FIRMSHotspot, osm_context: OSMC
             evidence=["FRP < 10", "Distance < 1000m"],
             source_data={"method": "rule_based"}
         )
-    elif not near_industry and frp > 100:
+    elif not near_industry and frp >= 15:
         classification_result = ClassificationResult(
             classification=ClassificationEnum.WILDFIRE_FOREST_FIRE,
             confidence_score=0.75,
             explanation="Large FRP far from industry.",
-            evidence=["FRP > 100", "No industry within 1km"],
+            evidence=["FRP >= 15", "No industry within 1km"],
             source_data={"method": "rule_based"}
         )
     elif not near_industry and not osm_context.near_water and frp < 25 and is_daytime:
@@ -239,6 +239,10 @@ async def classify_and_store(country: str = 'IND', days: int = 1) -> List[Classi
                 payload = {
                     "latitude": h.latitude,
                     "longitude": h.longitude,
+                    "brightness": h.brightness or h.bright_ti4,
+                    "scan": h.scan,
+                    "track": h.track,
+                    "bright_t31": h.bright_t31,
                     "acq_date": str(h.acq_date) if h.acq_date else None,
                     "acq_time": h.acq_time,
                     "satellite": h.satellite,
@@ -266,7 +270,7 @@ async def classify_and_store(country: str = 'IND', days: int = 1) -> List[Classi
             logger.error(f"Bulk insert of new hotspots failed: {e}")
             
     # 3. Priority Selection
-    unclassified_candidates.sort(key=lambda x: x.frp, reverse=True)
+    unclassified_candidates.sort(key=lambda x: x.frp or 0.0, reverse=True)
     limit = getattr(settings, 'AI_CLASSIFICATION_LIMIT', 50)
     selected_for_ai = unclassified_candidates[:limit]
     remaining = len(unclassified_candidates) - len(selected_for_ai)
@@ -300,7 +304,7 @@ async def classify_and_store(country: str = 'IND', days: int = 1) -> List[Classi
                         "land_use_context": osm.land_use_context,
                         "water_context": osm.water_context,
                         "near_water": osm.near_water,
-                        "osm_source": osm.osm_source
+                        "osm_source": osm.osm_source.value if hasattr(osm.osm_source, "value") else str(osm.osm_source)
                     }
                 }
                 supabase_service.table("classifications").insert(cls_data).execute()

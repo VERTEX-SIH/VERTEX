@@ -22,6 +22,9 @@ class OSMSourceEnum(str, Enum):
     OFFLINE_CATALOG = 'OFFLINE_CATALOG'
     FAILED = 'FAILED'
     PENDING = 'PENDING'
+    GEMINI_AI_IDENTIFIED = 'GEMINI_AI_IDENTIFIED'
+    GEMINI_VERIFIED_NO_FACILITY = 'GEMINI_VERIFIED_NO_FACILITY'
+    LIVE_GEMINI_ENRICHED = 'LIVE_GEMINI_ENRICHED'
 
 class OSMContext(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
@@ -33,7 +36,7 @@ class OSMContext(BaseModel):
     land_use_context: List[str] = []
     water_context: List[str] = []
     near_water: bool = False
-    osm_source: OSMSourceEnum = OSMSourceEnum.PENDING
+    osm_source: Any = OSMSourceEnum.PENDING
 
 class ClassificationResult(BaseModel):
     classification: ClassificationEnum
