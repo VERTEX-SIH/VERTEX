@@ -268,10 +268,25 @@ function mergeClassifiedIntoMap(
     };
   });
 
+  // Determine latest acquisition date present in currentMapData (today's active batch)
+  let latestLiveDate = '';
+  for (const item of currentMapData) {
+    const d = String(item.hotspot?.acq_date || '').slice(0, 10);
+    if (d && d > latestLiveDate) {
+      latestLiveDate = d;
+    }
+  }
+
   const result = [...mergedLive];
   for (const classified of classifiedData) {
     if (!matchedClassifiedIds.has(String(classified.id))) {
-      result.push(classified);
+      const classDate = String(classified.hotspot?.acq_date || '').slice(0, 10);
+      // Only retain unmatched historical items if no new live date exists
+      // or if the classified item is from the same active date batch.
+      // Once new live detections arrive, old ones from yesterday retire automatically.
+      if (!latestLiveDate || classDate >= latestLiveDate) {
+        result.push(classified);
+      }
     }
   }
 
@@ -1028,8 +1043,21 @@ export function GlobalStateProvider({
          * ---------------------------------------------------
          */
 
+        let latestDate = '';
+        for (const item of mergedInitialMapData) {
+          const d = String(item.hotspot?.acq_date || '').slice(0, 10);
+          if (d && d > latestDate) latestDate = d;
+        }
+
+        const activeSidebarHotspots = latestDate
+          ? initialClassifiedData.filter((h) => {
+              const d = String(h.hotspot?.acq_date || '').slice(0, 10);
+              return !d || d >= latestDate;
+            })
+          : initialClassifiedData;
+
         setHotspots(
-          initialClassifiedData
+          activeSidebarHotspots.length > 0 ? activeSidebarHotspots : initialClassifiedData
         );
 
 
@@ -1141,11 +1169,6 @@ export function GlobalStateProvider({
                 );
 
 
-              setHotspots(
-                enrichedData
-              );
-
-
               /*
                * Refetch current FIRMS so map state remains
                * synchronized with the backend.
@@ -1160,6 +1183,23 @@ export function GlobalStateProvider({
                   freshMapData,
                   enrichedData
                 );
+
+              let latestFreshDate = '';
+              for (const item of mergedEnrichedMapData) {
+                const d = String(item.hotspot?.acq_date || '').slice(0, 10);
+                if (d && d > latestFreshDate) latestFreshDate = d;
+              }
+
+              const activeEnrichedSidebar = latestFreshDate
+                ? enrichedData.filter((h) => {
+                    const d = String(h.hotspot?.acq_date || '').slice(0, 10);
+                    return !d || d >= latestFreshDate;
+                  })
+                : enrichedData;
+
+              setHotspots(
+                activeEnrichedSidebar.length > 0 ? activeEnrichedSidebar : enrichedData
+              );
 
 
               setMapHotspots(

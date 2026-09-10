@@ -39,8 +39,26 @@ async def get_classified_hotspots(
             
         # Execute query
         res = query.execute()
-        records = res.data
-        
+        records = res.data or []
+
+        # Find the latest available acquisition date among records.
+        # If new observations have arrived, filter to the active window (latest date).
+        # If today's pass hasn't arrived yet, records from the most recent available date
+        # stay visible so the operational view doesn't disappear prematurely.
+        valid_dates = [str(r.get("acq_date"))[:10] for r in records if r.get("acq_date")]
+        if valid_dates and days is not None and days > 0:
+            from datetime import datetime, timedelta
+            try:
+                latest_dt = max(datetime.strptime(d, "%Y-%m-%d") for d in valid_dates)
+                cutoff_dt = latest_dt - timedelta(days=days - 1)
+                cutoff_date_str = cutoff_dt.strftime("%Y-%m-%d")
+                records = [
+                    r for r in records
+                    if not r.get("acq_date") or str(r.get("acq_date"))[:10] >= cutoff_date_str
+                ]
+            except Exception as dt_err:
+                logger.warning(f"Could not apply date cutoff on hotspots: {dt_err}")
+
         features = []
         for r in records:
             lat = float(r.get("latitude", 0))
