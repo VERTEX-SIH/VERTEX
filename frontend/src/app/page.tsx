@@ -42,7 +42,7 @@ function StandardHomePage({ user }: { user: any }) {
               Turn heat signals into <span className="text-primary">clearer decisions.</span>
             </h1>
             <p className="mt-6 max-w-2xl font-body-lg text-base leading-7 text-secondary sm:text-lg">
-              VERTEX was built to help analysts quickly understand thermal anomalies across India—where they are, what they may represent, and which ones deserve attention now.
+              VERTEX was built to help analysts quickly understand thermal anomalies across India, where they are, what they may represent, and which ones deserve attention now.
             </p>
             <div className="mt-9 flex flex-wrap gap-3">
               <Link
@@ -194,41 +194,52 @@ function StandardHomePage({ user }: { user: any }) {
  */
 function AdminCommandCenter({ user }: { user: any }) {
   const router = useRouter();
-  const { hotspots, mapHotspots, analyticsSummary, setSelectedHotspot } = useGlobalState();
+  const { hotspots, mapHotspots, analyticsSummary, loading, setSelectedHotspot } = useGlobalState();
 
-  // Total thermal detections count
-  const totalDetections = mapHotspots.length > 0
-    ? mapHotspots.length
-    : (analyticsSummary?.total_hotspots || (hotspots.length > 0 ? hotspots.length : 8773));
+  // Total active thermal detections count in current 24h satellite pass
+  const totalDetections = useMemo(() => {
+    if (mapHotspots.length > 0) return mapHotspots.length;
+    if (hotspots.length > 0) return hotspots.length;
+    return 0;
+  }, [mapHotspots.length, hotspots.length]);
 
   // Critical & High risk alerts count
   const criticalCount = useMemo(() => {
-    if (!Array.isArray(hotspots) || hotspots.length === 0) return 14;
+    if (!Array.isArray(hotspots) || hotspots.length === 0) return 0;
     return hotspots.filter((h) => {
       const r = h?.classification?.risk_level?.toUpperCase();
       return r === 'CRITICAL' || r === 'HIGH';
-    }).length || 14;
+    }).length;
   }, [hotspots]);
 
-  // Top 3 Critical Incidents for the Triage Widget
+  // Incidents for Triage Widget: Prioritize real CRITICAL / HIGH threats;
+  // If all clear, display top active thermal signatures by FRP for routine surveillance
   const triageIncidents = useMemo(() => {
     if (!Array.isArray(hotspots) || hotspots.length === 0) return [];
-    
-    // Sort primarily by risk severity (CRITICAL first, then HIGH), then by FRP descending
+
+    const criticalOrHigh = hotspots.filter((h) => {
+      const r = h?.classification?.risk_level?.toUpperCase();
+      return r === 'CRITICAL' || r === 'HIGH';
+    });
+
+    if (criticalOrHigh.length > 0) {
+      return [...criticalOrHigh]
+        .sort((a, b) => {
+          const rA = a?.classification?.risk_level?.toUpperCase() === 'CRITICAL' ? 2 : 1;
+          const rB = b?.classification?.risk_level?.toUpperCase() === 'CRITICAL' ? 2 : 1;
+          if (rB !== rA) return rB - rA;
+          return Number(b?.hotspot?.frp || 0) - Number(a?.hotspot?.frp || 0);
+        })
+        .slice(0, 3);
+    }
+
+    // Routine monitoring mode: Top 3 by Fire Radiative Power (FRP)
     return [...hotspots]
-      .sort((a, b) => {
-        const riskWeight = (h: ClassifiedHotspot) => {
-          const r = h?.classification?.risk_level?.toUpperCase();
-          if (r === 'CRITICAL') return 3;
-          if (r === 'HIGH') return 2;
-          return 1;
-        };
-        const weightDiff = riskWeight(b) - riskWeight(a);
-        if (weightDiff !== 0) return weightDiff;
-        return Number(b?.hotspot?.frp || 0) - Number(a?.hotspot?.frp || 0);
-      })
+      .sort((a, b) => Number(b?.hotspot?.frp || 0) - Number(a?.hotspot?.frp || 0))
       .slice(0, 3);
   }, [hotspots]);
+
+  const hasUrgentThreats = criticalCount > 0;
 
   const handleInvestigate = (hotspot: ClassifiedHotspot) => {
     setSelectedHotspot(hotspot);
@@ -351,23 +362,39 @@ function AdminCommandCenter({ user }: { user: any }) {
               ACTIVE THERMAL DETECTIONS
             </div>
             <div className="font-mono text-3xl font-black text-[#193946]">
-              {Number(totalDetections).toLocaleString()}
+              {loading && totalDetections === 0 ? (
+                <span className="inline-block animate-pulse text-[#556575]">--</span>
+              ) : (
+                Number(totalDetections).toLocaleString()
+              )}
             </div>
             <div className="mt-1 font-mono text-[10px] text-[#556575]">
               Live 24h satellite observations
             </div>
           </div>
 
-          <div className="border border-[#f5751c]/40 bg-surface p-4 shadow-md transition-transform hover:-translate-y-0.5">
-            <div className="font-mono text-[10px] tracking-widest text-[#f5751c] font-bold uppercase flex items-center gap-1.5 mb-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#f5751c] animate-pulse" />
+          <div className={`border bg-surface p-4 shadow-md transition-transform hover:-translate-y-0.5 ${
+            hasUrgentThreats ? 'border-[#f5751c]/40' : 'border-emerald-600/30'
+          }`}>
+            <div className={`font-mono text-[10px] tracking-widest font-bold uppercase flex items-center gap-1.5 mb-1.5 ${
+              hasUrgentThreats ? 'text-[#f5751c]' : 'text-emerald-700'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                hasUrgentThreats ? 'bg-[#f5751c] animate-pulse' : 'bg-emerald-500'
+              }`} />
               CRITICAL &amp; HIGH RISK ALERTS
             </div>
-            <div className="font-mono text-3xl font-black text-[#f5751c]">
-              {criticalCount}
+            <div className={`font-mono text-3xl font-black ${
+              hasUrgentThreats ? 'text-[#f5751c]' : 'text-emerald-700'
+            }`}>
+              {loading && totalDetections === 0 ? (
+                <span className="inline-block animate-pulse text-[#556575]">--</span>
+              ) : (
+                criticalCount
+              )}
             </div>
             <div className="mt-1 font-mono text-[10px] text-[#556575]">
-              Immediate operator triage required
+              {hasUrgentThreats ? 'Immediate operator triage required' : 'All clear · Routine baseline operations'}
             </div>
           </div>
 
@@ -403,15 +430,21 @@ function AdminCommandCenter({ user }: { user: any }) {
       <section className="w-full px-6 sm:px-10 lg:px-14 xl:px-20 py-12">
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#efbc9d]/60 pb-4">
           <div>
-            <p className="font-mono text-[10px] font-bold tracking-[0.2em] text-[#f5751c] uppercase flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[16px]">priority_high</span>
-              PRIORITY INCIDENT TRIAGE
+            <p className={`font-mono text-[10px] font-bold tracking-[0.2em] uppercase flex items-center gap-1.5 ${
+              hasUrgentThreats ? 'text-[#f5751c]' : 'text-emerald-700'
+            }`}>
+              <span className="material-symbols-outlined text-[16px]">
+                {hasUrgentThreats ? 'priority_high' : 'verified'}
+              </span>
+              {hasUrgentThreats ? 'PRIORITY INCIDENT TRIAGE' : 'SURVEILLANCE RADAR · ALL CLEAR'}
             </p>
             <h2 className="mt-1 font-headline-sm text-2xl font-black text-[#193946] tracking-tight sm:text-3xl">
-              Urgent High-Consequence Fire Clusters
+              {hasUrgentThreats ? 'Urgent High-Consequence Fire Clusters' : 'Active Monitored Thermal Signatures'}
             </h2>
             <p className="mt-1 text-xs text-[#556575]">
-              High radiative power events classified by Gemini 3.5 Flash Lite requiring immediate spatial oversight.
+              {hasUrgentThreats
+                ? 'High radiative power events classified by Gemini 3.5 Flash Lite requiring immediate spatial oversight.'
+                : 'No critical or high-risk fire emergencies detected in current satellite overpass. Displaying top active signatures by Fire Radiative Power (FRP) under routine surveillance.'}
             </p>
           </div>
           <Link
@@ -454,10 +487,22 @@ function AdminCommandCenter({ user }: { user: any }) {
                         className={`inline-flex items-center gap-1 px-2 py-0.5 font-mono text-[9px] font-bold tracking-widest uppercase ${
                           isCritical
                             ? 'bg-[#f5751c]/15 text-[#f5751c] border border-[#f5751c]/40'
-                            : 'bg-[#193946]/10 text-[#193946] border border-[#193946]/30'
+                            : riskLevel === 'HIGH'
+                            ? 'bg-amber-500/15 text-amber-700 border border-amber-500/40'
+                            : riskLevel === 'MODERATE'
+                            ? 'bg-blue-500/10 text-blue-700 border border-blue-500/30'
+                            : 'bg-emerald-50 text-emerald-700 border border-emerald-300'
                         }`}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full ${isCritical ? 'bg-[#f5751c] animate-ping' : 'bg-[#193946]'}`} />
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          isCritical
+                            ? 'bg-[#f5751c] animate-ping'
+                            : riskLevel === 'HIGH'
+                            ? 'bg-amber-500'
+                            : riskLevel === 'MODERATE'
+                            ? 'bg-blue-500'
+                            : 'bg-emerald-500'
+                        }`} />
                         {riskLevel} RISK
                       </span>
                       <span className="font-mono text-xs font-bold text-[#193946]">

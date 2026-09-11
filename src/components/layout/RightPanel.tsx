@@ -79,9 +79,19 @@ function getFallbackContext(lat: number, lon: number) {
     const dist = getHaversineMeters(lat, lon, fac.latitude, fac.longitude);
     if (dist < minDist) {
       minDist = dist;
-      const clampedDist = Math.min(Math.round(dist), 950);
-      nearest = { name: fac.name, type: fac.type, distance_m: clampedDist, distance_meters: clampedDist };
+      const actualDist = Math.round(dist);
+      nearest = { name: fac.name, type: fac.type, distance_m: actualDist, distance_meters: actualDist };
     }
+  }
+  if (minDist > 1000) {
+      return {
+          nearby_facilities: [],
+          nearest_facility_distance: null,
+          nearest_facility_type: null,
+          facility_count_in_radius: 0,
+          land_use_context: [],
+          osm_source: 'OFFLINE_CATALOG',
+      };
   }
   return {
     nearby_facilities: nearest ? [nearest] : [],
@@ -131,13 +141,16 @@ function normalizeContext(context: any) {
 function contextSourceLabel(source?: string) {
   switch (source) {
     case 'GEMINI_AI_IDENTIFIED':
-      return 'GEMINI AI IDENTIFIED';
+      return 'GEMINI AI + SATELLITE TELEMETRY';
 
     case 'GEMINI_VERIFIED_NO_FACILITY':
-      return 'GEMINI AI VERIFIED (OPEN TERRAIN)';
+      return 'GEMINI AI & OSM VERIFIED';
+
+    case 'LIVE_GEMINI_ENRICHED':
+      return 'OSM LIVE + GEMINI AI';
 
     case 'LIVE':
-      return 'OPENSTREETMAP LIVE';
+      return 'OSM LIVE';
 
     case 'CACHED':
       return 'OSM CACHED';
@@ -258,6 +271,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
 
   const [displayContext, setDisplayContext] =
     useState<any>(EMPTY_CONTEXT);
+  const [overrideClassification, setOverrideClassification] = useState<any>(null);
   const [satelliteEvidence, setSatelliteEvidence] = useState<any>(null);
   const [satelliteLoading, setSatelliteLoading] = useState(false);
   const [satelliteError, setSatelliteError] = useState<string | null>(null);
@@ -269,6 +283,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
     setDisplayContext(
       normalizeContext(hotspot?.context ?? EMPTY_CONTEXT)
     );
+    setOverrideClassification(null);
     setContextRefreshError(null);
     setIsRefreshingContext(false);
   }, [hotspot?.id, hotspot?.context]);
@@ -344,10 +359,10 @@ export function RightPanel({ hotspot }: RightPanelProps) {
         );
 
         setDisplayContext(normalized);
-      } else {
-        throw new Error(
-          'Invalid context returned by backend'
-        );
+      }
+
+      if ((result as any)?.classification) {
+        setOverrideClassification((result as any).classification);
       }
     } catch (error) {
       console.error(
@@ -356,7 +371,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
       );
 
       setContextRefreshError(
-        'Context refresh failed. Please try again.'
+        'Unable to complete area context scan. Please try again.'
       );
     } finally {
       setIsRefreshingContext(false);
@@ -400,8 +415,8 @@ export function RightPanel({ hotspot }: RightPanelProps) {
     );
   }
 
-  const { hotspot: firms, classification } =
-    hotspot;
+  const firms = hotspot.hotspot;
+  const classification = overrideClassification ?? hotspot.classification;
 
   const effectiveSatelliteEvidence =
     satelliteEvidence?.image_data_url || satelliteEvidence?.image_base64
@@ -425,8 +440,13 @@ export function RightPanel({ hotspot }: RightPanelProps) {
       : null;
 
   const rawContext = displayContext ?? EMPTY_CONTEXT;
+  const isResolvedSource =
+    rawContext?.osm_source &&
+    rawContext.osm_source !== 'PENDING' &&
+    rawContext.osm_source !== 'FAILED';
+
   const context =
-    rawContext?.nearby_facilities && rawContext.nearby_facilities.length > 0
+    (rawContext?.nearby_facilities && rawContext.nearby_facilities.length > 0) || isResolvedSource
       ? rawContext
       : firms
       ? { ...rawContext, ...getFallbackContext(firms.latitude, firms.longitude) }
@@ -434,13 +454,13 @@ export function RightPanel({ hotspot }: RightPanelProps) {
 
   const color =
     CLASSIFICATION_COLORS[
-      classification.classification
-    ];
+      classification.classification as ClassificationType
+    ] || '#9CA3AF';
 
   const label =
     CLASSIFICATION_LABELS[
-      classification.classification
-    ];
+      classification.classification as ClassificationType
+    ] || String(classification.classification);
 
   return (
     <aside className="bg-surface-container-low w-[340px] h-[calc(100vh-72px)] flex flex-col border-l border-outline-variant fixed right-0 top-[40px] bottom-[32px] z-40 overflow-hidden">
@@ -542,7 +562,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                       <div className="font-mono-data-md text-[13px] text-on-surface">
                         {firms.brightness > 0
                           ? firms.brightness.toFixed(1)
-                          : '0.0'}{' '}
+                          : 'N/A'}{' '}
                         K
                       </div>
                     </div>
@@ -569,13 +589,13 @@ export function RightPanel({ hotspot }: RightPanelProps) {
 
                     <div className="bg-surface p-2 col-span-2">
                       <div className="font-mono-label text-[10px] text-secondary mb-1">
-                        DAY/NGT
+                        SATELLITE CAPTURE
                       </div>
 
                       <div className="font-mono-data-md text-[13px] text-on-surface">
                         {firms.daynight === 'D'
-                          ? 'DAY'
-                          : 'NIGHT'}
+                          ? 'Satellite captured in the day'
+                          : 'Satellite captured at night'}
                       </div>
                     </div>
                   </div>
@@ -730,7 +750,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                         <div className="font-mono-data-md text-[13px] text-[#193946] font-bold">
                           {firms.brightness > 0
                             ? firms.brightness.toFixed(1)
-                            : '0.0'}{' '}
+                            : 'N/A'}{' '}
                           K
                         </div>
                       </div>
@@ -759,13 +779,13 @@ export function RightPanel({ hotspot }: RightPanelProps) {
 
                       <div className="bg-surface p-2 col-span-2">
                         <div className="font-mono-label text-[10px] text-[#556575] mb-1 font-bold uppercase">
-                          DAY/NGT
+                          SATELLITE CAPTURE
                         </div>
 
                         <div className="font-mono-data-md text-[13px] text-[#193946] font-bold">
                           {firms.daynight === 'D'
-                            ? 'DAY'
-                            : 'NIGHT'}
+                            ? 'Satellite captured in the day'
+                            : 'Satellite captured at night'}
                         </div>
                       </div>
                     </div>
@@ -935,7 +955,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                         <button
                           type="button"
                           onClick={() => setShowSatelliteImage(true)}
-                          className="block w-full cursor-zoom-in relative aspect-square border border-[#efbc9d]/60 overflow-hidden group bg-black"
+                          className="block w-full cursor-zoom-in relative aspect-square border border-outline-variant overflow-hidden group bg-black"
                           title="Open satellite image"
                         >
                           <img
@@ -953,12 +973,11 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                           {/* Thermal Heat & Fire Combustion Overlay */}
                           <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                             <div className="w-16 h-16 rounded-full border-2 border-red-500/80 animate-ping opacity-75" />
-                            <div className="w-8 h-8 rounded-full bg-red-600/40 border border-red-400 flex items-center justify-center">
-                              <div className="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_8px_#ef4444]" />
-                            </div>
+                            <div className="absolute w-10 h-10 rounded-full bg-gradient-to-r from-red-600/40 via-amber-500/50 to-yellow-400/60 blur-xs animate-pulse" />
+                            <div className="absolute w-4 h-4 rounded-full bg-amber-400 shadow-[0_0_12px_#ff3300] border border-white" />
                           </div>
-                          <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-black/80 backdrop-blur-xs border border-red-500/40 text-[9px] font-mono font-bold text-red-400 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                          <div className="absolute top-2 left-2 bg-black/80 backdrop-blur-md px-2 py-1 border border-red-500/50 flex items-center gap-1.5 font-mono text-[9px] text-red-400 shadow-lg">
+                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                             <span>SWIR THERMAL HEAT ({firms.frp.toFixed(1)} MW)</span>
                           </div>
                         </button>
@@ -1036,7 +1055,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
 
                           <ul className="list-disc pl-4 space-y-1 font-body-sm">
                             {classification.evidence.map(
-                              (item, i) => (
+                              (item: string, i: number) => (
                                 <li key={i}>
                                   {item}
                                 </li>
@@ -1086,7 +1105,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                 <Metric label="AI CONFIDENCE" value={classification ? Number(classification.confidence_score ?? 0).toFixed(2) : 'PENDING'} />
                 <Metric label="RISK SCORE" value={(classification as any)?.risk_score != null ? Number((classification as any).risk_score).toFixed(2) : 'N/A'} />
                 <Metric label="RISK LEVEL" value={String(classification?.risk_level ?? 'N/A')} />
-                <Metric label="MODEL" value={String((classification as any)?.source_data?.model ?? 'VERTEX-CLF-1.0')} />
+                <Metric label="MODEL" value={String((classification as any)?.source_data?.model ?? 'gemini-3.5-flash-lite')} />
               </MetricGrid>
             </Section>
           </div>

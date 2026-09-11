@@ -125,7 +125,7 @@ export function Header() {
 
   const modelName =
     status?.classification_model ||
-    'VERTEX-CLF-1.0';
+    'Gemini 3.5 Flash Lite';
 
   /*
    * =========================================================

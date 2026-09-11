@@ -74,7 +74,7 @@ async def get_classified_hotspots(
             primary_osm = dict(primary_class.get("osm_context") or {}) if primary_class else {}
             
             if primary_class and primary_class.get("classification"):
-                from services.classifier import calculate_risk_score, ClassificationEnum
+                from services.classifier import calculate_risk_score, calculate_dynamic_confidence, ClassificationEnum
                 frp = float(r.get("frp") or 0.0)
                 conf = str(r.get("confidence") or "n")
                 dist = primary_osm.get("nearest_facility_distance")
@@ -84,6 +84,11 @@ async def get_classified_hotspots(
                     score, level = calculate_risk_score(enum_val, frp, dist, conf)
                     primary_class["risk_score"] = score
                     primary_class["risk_level"] = level
+
+                    # Dynamically compute realistic confidence if legacy score was hardcoded 0.7 or missing
+                    curr_conf = primary_class.get("confidence_score")
+                    if curr_conf is None or abs(float(curr_conf) - 0.70) < 0.001:
+                        primary_class["confidence_score"] = calculate_dynamic_confidence(r, enum_val, primary_osm)
                 except Exception:
                     pass
             

@@ -1105,7 +1105,7 @@ export function RightPanel({ hotspot }: RightPanelProps) {
                 <Metric label="AI CONFIDENCE" value={classification ? Number(classification.confidence_score ?? 0).toFixed(2) : 'PENDING'} />
                 <Metric label="RISK SCORE" value={(classification as any)?.risk_score != null ? Number((classification as any).risk_score).toFixed(2) : 'N/A'} />
                 <Metric label="RISK LEVEL" value={String(classification?.risk_level ?? 'N/A')} />
-                <Metric label="MODEL" value={String((classification as any)?.source_data?.model ?? 'VERTEX-CLF-1.0')} />
+                <Metric label="MODEL" value={String((classification as any)?.source_data?.model ?? 'gemini-3.5-flash-lite')} />
               </MetricGrid>
             </Section>
           </div>

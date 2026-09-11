@@ -21,7 +21,7 @@ async def health_check():
     return {
         "status": overall,
         "services": services,
-        "classification_model": "VERTEX-CLF-1.0",
-        "classification_provider": settings.GEMINI_MODEL,
+        "classification_model": settings.GEMINI_MODEL,
+        "classification_provider": "Google Gemini",
         "version": "1.0.0"
     }

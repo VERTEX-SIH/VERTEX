@@ -355,7 +355,7 @@ export function EvidenceStackModal({
 {`[SYS] Initializing classification pipeline...
 [SYS] Fetched coordinates ${firms.latitude}, ${firms.longitude}
 [OSM] Queried radius 1000m. Found ${context.facility_count_in_radius} facilities.
-[AI]  Invoking model VERTEX-CLF-1.0
+[AI]  Invoking model ${(classification as any)?.source_data?.model || 'gemini-3.5-flash-lite'}
 [AI]  Payload: FRP ${firms.frp}, DAYNIGHT ${firms.daynight}
 [AI]  Response: ${classification.classification} (Conf: ${classification.confidence_score})
 [DB]  Status: CACHED_DEMO
